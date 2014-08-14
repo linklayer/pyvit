@@ -10,5 +10,5 @@ setup(
     url='http://pypi.python.org/pypi/CANard/',
     license='LICENSE.txt',
     description='Library for interacting with Controller Area Network (CAN).',
-    long_description=open('README.txt').read(),
+    long_description=open('README.rst').read(),
 )
