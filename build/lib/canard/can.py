@@ -64,9 +64,7 @@ class Frame(object):
         # return bytes up to dlc length, pad with None
         for i in range(0, self.dlc):
             result.append(self._data[i])
-        print result
         result = result + [None] * (8 - len(result))
-        print result
         return result
 
     @data.setter
