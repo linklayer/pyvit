@@ -98,3 +98,23 @@ class Frame(object):
         assert isinstance(value, int)
         assert value >= 0 and value <= 8, 'dlc must be between 0 and 8'
         self._dlc = value
+
+    def __str__(self):
+        ext_str = 'standard'
+        if self.is_extended_id:
+            ext_str == 'extended'
+        if self.frame_type == FrameType.DataFrame:
+            type_str = "data"
+        elif self.frame_type == FrameType.RemoteFrame:
+            type_str = "remote"
+        elif self.frame_type == FrameType.ErrorFrame:
+            type_str = "error"
+        elif self.frame_type == FrameType.OverloadFrame:
+            type_str = "overload"
+
+        result = 'Frame:'
+        result = result + '\tID=0x%X, DLC=%d, ' % (self.id, self.dlc)
+        result = result + '%s, %s' % (ext_str, type_str)
+        result = result + '\n\tData=%s' % self.data
+        return result
+
