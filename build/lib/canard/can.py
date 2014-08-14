@@ -1,12 +1,18 @@
+""" can.py
+
+Defines the low-level implementation of CAN.
+
+"""
+
 class FrameType:
-    # enumerate the four frame types
+    """ Enumerates the types of CAN frames """
     DataFrame = 1
     RemoteFrame = 2
     ErrorFrame = 3
     OverloadFrame = 4
 
 class Frame(object):
-    """Represents a CAN Frame
+    """ Represents a CAN Frame
 
     Attributes:
         id (int): CAN identifier of the Frame
@@ -15,11 +21,6 @@ class Frame(object):
         dlc (int): data length code of frame
         is_extended_id (bool): is this frame an extended identifier frame?
     """
-
-    _data = []
-    _id = None
-    _frame_type = FrameType.DataFrame
-    is_extended_id = False
 
     def __init__(self, id, data = [], frame_type = FrameType.DataFrame,
                  is_extended_id = False):
