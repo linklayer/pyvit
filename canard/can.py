@@ -16,17 +16,19 @@ class Frame(object):
 
     Attributes:
         id (int): CAN identifier of the Frame
+        dlc (int): data length code
         data (list of int): CAN data bytes
         frame_type (int): type of CAN frame
         dlc (int): data length code of frame
         is_extended_id (bool): is this frame an extended identifier frame?
     """
 
-    def __init__(self, id, data = [], frame_type = FrameType.DataFrame,
+    def __init__(self, id, dlc = 0, data = [], frame_type = FrameType.DataFrame,
                  is_extended_id = False):
         """ Initializer of Frame
         Args:
             id (int): identifier of CAN frame
+            dlc (int, optional): data length code of frame (defaults to 0)
             data (list, optional): data of CAN frame, defaults to empty list
             frame_type (int, optional): type of frame, defaults to 
                                         FrameType.DataFrame
@@ -37,6 +39,7 @@ class Frame(object):
         self.data = data
         self.frame_type = frame_type
         self.is_extended_id = is_extended_id
+        self.dlc = dlc
 
     @property
     def id(self):
@@ -57,7 +60,13 @@ class Frame(object):
 
     @property
     def data(self):
-        return self._data
+        result = []
+        # return bytes up to dlc length, pad with None
+        for i in range(0, self.dlc):
+            result.append(self._data[i])
+        result = result + [None] * (8 - len(result))
+        return result
+
     @data.setter
     def data(self, value):
         # data should be a list
@@ -83,4 +92,9 @@ class Frame(object):
 
     @property
     def dlc(self):
-        return len(self._data)
+        return self._dlc
+    @dlc.setter
+    def dlc(self, value):
+        assert isinstance(value, int)
+        assert value >= 0 and value <= 8, 'dlc must be between 0 and 8'
+        self._dlc = value

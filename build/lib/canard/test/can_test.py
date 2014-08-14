@@ -40,6 +40,18 @@ class CanTest(unittest.TestCase):
         # test out of range byte causes error
         with self.assertRaises(AssertionError):
             self.frame.data = [1,2,3,4,5,6,7,0xFFFF]
+        # check padding
+        self.frame.data = [1,2,3,4,5,6,7,8]
+        self.frame.dlc = 8
+        self.assertEqual(self.frame.data,
+                         [1, 2, 3, 4, 5, 6, 7, 8])
+
+        self.frame.dlc = 3
+        self.assertEqual(self.frame.data,
+                         [1, 2, 3, None, None, None, None, None])
+        self.frame.dlc = 0
+        self.assertEqual(self.frame.data,
+                         [None, None, None, None, None, None, None, None])
 
     def test_frame_type(self):
         # test invalid frame type causes error
@@ -52,20 +64,19 @@ class CanTest(unittest.TestCase):
         self.frame.frame_type = can.FrameType.OverloadFrame
 
     def test_dlc(self):
-        self.frame.data = [1,2,3]
-        self.assertEqual(self.frame.dlc, 3)
-        self.frame.data = []
-        self.assertEqual(self.frame.dlc, 0)
+        with self.assertRaises(AssertionError):
+            self.frame.dlc = 'test'
+        with self.assertRaises(AssertionError):
+            self.frame.dlc = 9
+        with self.assertRaises(AssertionError):
+            self.frame.dlc = -1
 
     def test_init(self):
-        frame = can.Frame(0x55, [1,2,3], can.FrameType.ErrorFrame, True)
+        frame = can.Frame(0x55, 6, [1,2,3,4,5,6], can.FrameType.ErrorFrame, True)
         self.assertEqual(frame.id, 0x55)
-        self.assertEqual(frame.data, [1,2,3])
+        self.assertEqual(frame.data, [1,2,3,4,5,6,None,None])
         self.assertEqual(frame.frame_type, can.FrameType.ErrorFrame)
         self.assertEqual(frame.is_extended_id, True)
 
 if __name__ == '__main__':
     unittest.main()
-
-
-
