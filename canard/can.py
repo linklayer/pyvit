@@ -23,6 +23,11 @@ class Frame(object):
         is_extended_id (bool): is this frame an extended identifier frame?
     """
 
+    _id = None
+    _data = []
+    _frame_type = None
+    dlc = 0
+
     def __init__(self, id, dlc = 0, data = [], frame_type = FrameType.DataFrame,
                  is_extended_id = False):
         """ Initializer of Frame
@@ -62,7 +67,7 @@ class Frame(object):
     def data(self):
         result = []
         # return bytes up to dlc length, pad with None
-        for i in range(0, self.dlc):
+        for i in range(0, min(self.dlc, len(self._data))):
             result.append(self._data[i])
         result = result + [None] * (8 - len(result))
         return result
