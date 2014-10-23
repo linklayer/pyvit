@@ -1,32 +1,31 @@
-import Queue, threading, time
+import time
 from .. import can
 
 class LogPlayer:
     running = False
     def __init__(self, log_filename):
         self.logfile = open(log_filename, 'r')
-        self.recv_queue = Queue.Queue()
-        self.send_queue = Queue.Queue()
 
     def start(self):
         assert not self.running, 'cannot start, already running'
-        self.thread = threading.Thread(target=self.task)
-        self.thread.daemon = True
-        self.thread.start()
+        self.start_timestamp = time.time()
+        self.running = True
 
-    def task(self):
+    def recv(self):
+        assert self.running, 'not running'
         last_timestamp = 0
-        for line in self.logfile:
-            # convert line to frame
-            frame = self._log_to_frame(line)
+        line = self.logfile.readline()
+        if line == '':
+            return None
 
-            # sleep until message occurs
-            time.sleep(frame.timestamp - last_timestamp)
-            last_timestamp = frame.timestamp
+        # convert line to frame
+        frame = self._log_to_frame(line)
 
-            # place message into queue
-            self.recv_queue.put(frame)
-        self.recv_queue.task_done()
+        # sleep until message occurs
+        time.sleep(max((self.start_timestamp - time.time() + frame.timestamp),
+                        0))
+
+        return frame
 
     def _log_to_frame(self, line):
         fields = line.split(' ')
