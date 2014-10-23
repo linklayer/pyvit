@@ -1,4 +1,4 @@
-import can
+from . import can
 
 class Logger:
     def __init__(self):
@@ -29,7 +29,7 @@ class Logger:
         return s
 
     def write_file(self, filename):
-        with open(filename, 'wb') as logfile:
+        with open(filename, 'w') as logfile:
             logfile.writelines(self._buffer)
 
     def clear(self):
