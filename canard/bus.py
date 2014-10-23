@@ -26,6 +26,8 @@ class Bus:
 
     def __str__(self):
         s = "Bus:\n"
+        for message in self._messages:
+            s = s + message.__str__()
         return s
 
 class Message(object):

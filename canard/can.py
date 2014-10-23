@@ -27,6 +27,7 @@ class Frame(object):
     _data = []
     _frame_type = None
     dlc = 0
+    timestamp = None
 
     def __init__(self, id, dlc = 0, data = [], frame_type = FrameType.DataFrame,
                  is_extended_id = False):
