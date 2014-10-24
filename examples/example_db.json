@@ -1,0 +1,13 @@
+{
+    "messages": [
+        {
+        "name": "test msg",
+        "id": "0x100",
+        "signals": {"0": {"name": "Engine RPM", "bit_length": 16,
+                          "factor": 2, "offset": 1},
+                    "16": {"name": "Gear", "bit_length": 3},
+                    "19": {"name": "Battery Voltage", "bit_length": 5}
+                   }
+        }
+    ]
+}

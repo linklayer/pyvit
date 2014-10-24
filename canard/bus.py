@@ -1,4 +1,4 @@
-import can
+from . import can
 
 class Bus:
     # message that belong to this bus
@@ -22,7 +22,7 @@ class Bus:
         assert isinstance(frame, can.Frame), 'invalid frame'
         for message in self._messages:
             if message.id == frame.id:
-                message.parse_frame(frame)
+                return message.parse_frame(frame)
 
     def __str__(self):
         s = "Bus:\n"
@@ -39,6 +39,8 @@ class Message(object):
         self.id = id
 
     def add_signal(self, signal, start_bit):
+        assert isinstance(signal, Signal), 'invalid signal'
+        assert isinstance(start_bit, int) and start_bit < 63, 'invalid start bit'
         self._signals[start_bit] = signal
 
     def remove_signal(self, signal):
@@ -53,6 +55,8 @@ class Message(object):
         for i in range(0, frame.dlc):
             if frame.data[i] != None:
                 frame_value = frame_value + (frame.data[i] << (8 * i))
+
+        result_signals = []
 
         # iterate over signals
         for start_bit, signal in self._signals.items():
@@ -70,6 +74,10 @@ class Message(object):
             # pass the maksed value to the signal
             signal.parse_value(value)
 
+            result_signals.append(signal)
+
+        return result_signals
+
     def __str__(self):
         s = "Message: %s, ID: 0x%X\n" % (self.name, self.id)
         for start_bit, signal in self._signals.items():
@@ -86,6 +94,7 @@ class Signal:
 
     def parse_value(self, value):
         self.value = value * self.factor + self.offset
+        return self
 
     def __str__(self):
         s = "Signal: %s\tValue = %d" % (self.name, self.value)
