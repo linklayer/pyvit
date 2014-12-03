@@ -5,7 +5,7 @@ setup(
     version='0.1-dev',
     author='Eric Evenchick',
     author_email='eric@evenchick.com',
-    packages=['canard', 'canard.test'],
+    packages=['canard', 'canard.test', 'canard.hw'],
     scripts=[],
     url='http://pypi.python.org/pypi/CANard/',
     license='LICENSE.txt',
