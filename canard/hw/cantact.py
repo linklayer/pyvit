@@ -1,6 +1,5 @@
 import serial
 import io
-import Queue
 
 from .. import can
 
