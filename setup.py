@@ -2,13 +2,19 @@ from distutils.core import setup
 
 setup(
     name='CANard',
-    version='0.1-dev',
+    version='0.1.0',
     author='Eric Evenchick',
     author_email='eric@evenchick.com',
     packages=['canard', 'canard.test', 'canard.hw'],
     scripts=[],
-    url='http://pypi.python.org/pypi/CANard/',
-    license='LICENSE.txt',
-    description='Library for interacting with Controller Area Network (CAN).',
+    url='http://github.com/ericevenchick/CANard',
+    license='GPLv3',
+    description='Library for interacting with Controller Area Network (CAN)',
     long_description=open('README.rst').read(),
+    classifiers=['Development Status :: 3 - Alpha',
+		 'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+		 'Topic :: Software Development :: Libraries',
+		 'Topic :: Software Development :: Embedded Systems']
+
+
 )
