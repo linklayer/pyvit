@@ -13,6 +13,16 @@ class CantactDev:
     def stop(self):
 	self.ser.write('C\r')
 
+    def set_bitrate(self, bitrate):
+	if bitrate == 125000:
+	    self.ser.write('S0\r')
+	elif bitrate == 250000:
+	    self.ser.write('S1\r')
+	elif bitrate == 500000:
+	    self.ser.write('S2\r')
+	else:
+	    raise ValueError("Bitrate not supported")
+
     def recv(self):
 	# receive characters until a newline (\r) is hit
 	rx_str = ""
