@@ -11,4 +11,4 @@ while True:
     count = count + 1
     frame = dev.recv()
     dev.send(frame)
-    print "%d: %s" % (count, str(frame))
+    print("%d: %s" % (count, str(frame)))
