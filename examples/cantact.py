@@ -1,7 +1,7 @@
 from canard import can
 from canard.hw import cantact
 
-dev = cantact.CantactDev("/dev/cu.usbmodem14511")
+dev = cantact.CantactDev("/dev/cu.usbmodem145431")
 
 dev.stop()
 dev.ser.write('S0\r')
