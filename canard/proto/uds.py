@@ -1,13 +1,13 @@
 from canard import can 
-from canard.proto.cantp import CanTpProtocol, CanTpMessage
+from canard.proto.isotp import IsoTpProtocol, IsoTpMessage
 import time
 
-class UdsInterface(CanTpProtocol):
+class UdsInterface(IsoTpProtocol):
     def __init__(self, can_dev):
         self.can_dev = can_dev
 
     def uds_request(self, ecu_id, service, payload, timeout=2):
-        msg = CanTpMessage(ecu_id)
+        msg = IsoTpMessage(ecu_id)
         
         # pack data according to OBD-II standard
         msg.data = [service] + payload

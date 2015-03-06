@@ -1,13 +1,13 @@
 from canard import can 
-from canard.proto.cantp import CanTpProtocol, CanTpMessage
+from canard.proto.isotp import IsoTpProtocol, IsoTpMessage
 import time
 
-class ObdInterface(CanTpProtocol):
+class ObdInterface(IsoTpProtocol):
     def __init__(self, can_dev):
         self.can_dev = can_dev
 
     def obd_request(self, ecu_id, mode, pid_code, timeout=2):
-        msg = CanTpMessage(ecu_id)
+        msg = IsoTpMessage(ecu_id)
         
         # pack data according to OBD-II standard
         msg.data = [mode, pid_code]

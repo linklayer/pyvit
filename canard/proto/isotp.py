@@ -1,12 +1,12 @@
 from .. import can
 
-class CanTpProtocol:
+class IsoTpProtocol:
     def __init__(self):
         pass
 
     def _start_msg(self, id=0):
         # initialize reading of a message
-        self.msg = CanTpMessage(id)
+        self.msg = IsoTpMessage(id)
         self.data_byte_count = 0
         self.sequence_number = 0
 
@@ -156,7 +156,7 @@ class CanTpProtocol:
 
         return res
         
-class CanTpMessage:
+class IsoTpMessage:
     def __init__(self, id):
         self.length = 0 
         self.data = []
