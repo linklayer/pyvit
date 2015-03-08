@@ -9,15 +9,15 @@ class UdsInterface(IsoTpProtocol):
     def uds_request(self, ecu_id, service, payload, timeout=2):
         msg = IsoTpMessage(ecu_id)
         
-        # pack data according to OBD-II standard
+        # first byte is service ID, rest of message is payload
         msg.data = [service] + payload
         
-        # standard OBD-II request messages have length of 2
+        # length is payload length plus 1 for service ID byte
         msg.length = len(payload) + 1
 
         # generate a request
         request = self.generate_frames(msg)
-        
+
         # send the request
         for f in request:
             self.can_dev.send(f)
@@ -26,7 +26,7 @@ class UdsInterface(IsoTpProtocol):
         start_ts = time.time()
         result = None
 
-        while result == None
+        while result == None:
             if time.time() - start_ts > timeout:
                 return None
  
@@ -34,5 +34,3 @@ class UdsInterface(IsoTpProtocol):
 
             if response.id == ecu_id:
                 result = self.parse_frame(response)
-            
-       
