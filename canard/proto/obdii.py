@@ -24,9 +24,9 @@ class ObdInterface(IsoTpProtocol):
         # get a response message with the same ID
         response = self.can_dev.recv()
         start_ts = time.time()
-        while response.id != ecu_id:
+        while response.id != ecu_id + 0x20:
             response = self.can_dev.recv()
             if time.time() - start_ts > timeout:
                 return None
-        
+                
         return self.parse_frame(response)

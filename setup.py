@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='CANard',
-    version='0.1.1',
+    version='0.1.2',
     author='Eric Evenchick',
     author_email='eric@evenchick.com',
     packages=['canard', 'canard.test', 'canard.hw'],

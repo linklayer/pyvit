@@ -31,6 +31,8 @@ class UdsInterface(IsoTpProtocol):
                 return None
  
             response = self.can_dev.recv()
-
-            if response.id == ecu_id:
+            
+            if response.id == ecu_id + 0x20:
                 result = self.parse_frame(response)
+
+        return result
