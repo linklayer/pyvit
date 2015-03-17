@@ -1,6 +1,7 @@
 from canard import can
 import multiprocessing
 import Queue
+import time
 
 class CanQueue:
     def __init__(self, can_dev):
@@ -25,12 +26,16 @@ class CanQueue:
 
     def recv(self, timeout=1, filter=None):
         try:
+            start_time = time.time()
             while True:
                 msg = self.recv_queue.get(timeout=timeout)
                 if not filter:
                     return msg
                 elif filter == msg.id:
                     return msg
+                    # ensure we haven't gone over the timeout
+                    if time.time() - start_time > timeout:
+                        return None
 
         except Queue.Empty:
             return None
