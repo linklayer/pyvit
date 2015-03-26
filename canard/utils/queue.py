@@ -33,9 +33,9 @@ class CanQueue:
                     return msg
                 elif filter == msg.id:
                     return msg
-                    # ensure we haven't gone over the timeout
-                    if time.time() - start_time > timeout:
-                        return None
+                # ensure we haven't gone over the timeout
+                if time.time() - start_time > timeout:
+                    return None
 
         except Queue.Empty:
             return None
