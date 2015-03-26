@@ -1,9 +1,9 @@
 from canard import can
 from canard.hw import cantact
+import sys
 
-dev = cantact.CantactDev("/dev/cu.usbmodem145431")
+dev = cantact.CantactDev(sys.argv[1])
 
-dev.stop()
 dev.ser.write('S0\r')
 dev.start()
 count = 0

@@ -2,10 +2,10 @@ from distutils.core import setup
 
 setup(
     name='CANard',
-    version='0.1.2',
+    version='0.2.0',
     author='Eric Evenchick',
     author_email='eric@evenchick.com',
-    packages=['canard', 'canard.test', 'canard.hw'],
+    packages=['canard', 'canard.test', 'canard.hw', 'canard.utils', 'canard.proto'],
     scripts=[],
     url='http://github.com/ericevenchick/CANard',
     license='GPLv3',
