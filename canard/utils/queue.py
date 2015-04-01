@@ -1,6 +1,11 @@
 from canard import can
 import multiprocessing
-import Queue
+
+try:
+    import queue
+except ImportError:
+    import Queue as queue
+
 import time
 
 class CanQueue:
@@ -37,7 +42,7 @@ class CanQueue:
                 if time.time() - start_time > timeout:
                     return None
 
-        except Queue.Empty:
+        except queue.Empty:
             return None
         
     def recv_task(self):
