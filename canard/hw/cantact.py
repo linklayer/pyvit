@@ -14,12 +14,24 @@ class CantactDev:
         self.ser.write('C\r')
 
     def set_bitrate(self, bitrate):
-        if bitrate == 125000:
+        if bitrate == 10000:
             self.ser.write('S0\r')
-        elif bitrate == 250000:
+        elif bitrate == 20000:
             self.ser.write('S1\r')
-        elif bitrate == 500000:
+        elif bitrate == 50000:
             self.ser.write('S2\r')
+        elif bitrate == 100000:
+            self.ser.write('S3\r')
+        elif bitrate == 125000:
+            self.ser.write('S4\r')
+        elif bitrate == 250000:
+            self.ser.write('S5\r')
+        elif bitrate == 500000:
+            self.ser.write('S6\r')
+        elif bitrate == 750000:
+            self.ser.write('S7\r')
+        elif bitrate == 1000000:
+            self.ser.write('S8\r')
         else:
             raise ValueError("Bitrate not supported")
 
