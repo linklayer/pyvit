@@ -4,12 +4,14 @@ Defines the low-level implementation of CAN.
 
 """
 
+
 class FrameType:
     """ Enumerates the types of CAN frames """
     DataFrame = 1
     RemoteFrame = 2
     ErrorFrame = 3
     OverloadFrame = 4
+
 
 class Frame(object):
     """ Represents a CAN Frame
@@ -23,33 +25,32 @@ class Frame(object):
         is_extended_id (bool): is this frame an extended identifier frame?
     """
 
-    _id = None
-    _data = []
-    _frame_type = None
-    dlc = 0
-    timestamp = None
-
-    def __init__(self, id, dlc = 0, data = [], frame_type = FrameType.DataFrame,
-                 is_extended_id = False):
+    def __init__(self, id, dlc=0, data=[], frame_type=FrameType.DataFrame,
+                 is_extended_id=False):
         """ Initializer of Frame
         Args:
             id (int): identifier of CAN frame
             dlc (int, optional): data length code of frame (defaults to 0)
             data (list, optional): data of CAN frame, defaults to empty list
-            frame_type (int, optional): type of frame, defaults to 
+            frame_type (int, optional): type of frame, defaults to
                                         FrameType.DataFrame
             is_extended_id (bool, optional): is the frame an extended id frame?
                                              defaults to False
         """
+
+        # these 2 fields must be defined before 'id' and'data', otherwise
+        # 'no attribute ' exception will be raised
+        self.is_extended_id = is_extended_id
+        self.dlc = dlc
+
         self.id = id
         self.data = data
         self.frame_type = frame_type
-        self.is_extended_id = is_extended_id
-        self.dlc = dlc
 
     @property
     def id(self):
         return self._id
+
     @id.setter
     def id(self, value):
         # ensure value is an integer
@@ -58,7 +59,7 @@ class Frame(object):
         if value >= 0 and value <= 0x7FF:
             self._id = value
         # otherwise, check if frame is extended
-        elif value > 0x7FF and value <= 0x1FFFFFFF and self.is_extended_id:
+        elif self.is_extended_id and value > 0x7FF and value <= 0x1FFFFFFF:
             self._id = value
         # otherwise, id is not valid
         else:
@@ -66,11 +67,10 @@ class Frame(object):
 
     @property
     def data(self):
-        result = []
         # return bytes up to dlc length, pad with zeros
-        for i in range(0, min(self.dlc, len(self._data))):
-            result.append(self._data[i])
-        result = result + [0] * (8 - len(result))
+        data_len = min(self.dlc, len(self._data))
+        result = self.data[:data_len]
+        result.extended([0] * (8 - data_len))
         return result
 
     @data.setter
@@ -89,16 +89,18 @@ class Frame(object):
     @property
     def frame_type(self):
         return self._frame_type
+
     @frame_type.setter
     def frame_type(self, value):
         assert value == FrameType.DataFrame or value == FrameType.RemoteFrame \
-               or value == FrameType.ErrorFrame or \
-               value == FrameType.OverloadFrame, 'invalid frame type'
+            or value == FrameType.ErrorFrame or \
+            value == FrameType.OverloadFrame, 'invalid frame type'
         self._frame_type = value
 
     @property
     def dlc(self):
         return self._dlc
+
     @dlc.setter
     def dlc(self, value):
         assert isinstance(value, int)
@@ -123,4 +125,3 @@ class Frame(object):
         result = result + '%s, %s' % (ext_str, type_str)
         result = result + '\n\tData=%s' % self.data
         return result
-

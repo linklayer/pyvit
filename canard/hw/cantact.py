@@ -1,7 +1,6 @@
 import serial
-import io
-
 from .. import can
+
 
 class CantactDev:
     def __init__(self, port):
