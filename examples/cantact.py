@@ -4,7 +4,7 @@ import sys
 
 dev = cantact.CantactDev(sys.argv[1])
 
-dev.ser.write('S0\r')
+dev.ser.write('S0\r'.encode())
 dev.start()
 count = 0
 while True:

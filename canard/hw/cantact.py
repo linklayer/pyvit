@@ -7,18 +7,18 @@ class CantactDev:
         self.ser = serial.Serial(port)
 
     def start(self):
-        self.ser.write('O\r')
+        self.ser.write('O\r'.encode())
 
     def stop(self):
-        self.ser.write('C\r')
+        self.ser.write('C\r'.encode())
 
     def set_bitrate(self, bitrate):
         if bitrate == 125000:
-            self.ser.write('S0\r')
+            self.ser.write('S0\r'.encode())
         elif bitrate == 250000:
-            self.ser.write('S1\r')
+            self.ser.write('S1\r'.encode())
         elif bitrate == 500000:
-            self.ser.write('S2\r')
+            self.ser.write('S2\r'.encode())
         else:
             raise ValueError("Bitrate not supported")
 
@@ -55,4 +55,4 @@ class CantactDev:
         tx_str = tx_str + '\r'
 
         # send it
-        self.ser.write(tx_str)
+        self.ser.write(tx_str.encode())
