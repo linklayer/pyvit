@@ -8,6 +8,14 @@ from .. import can
 class SocketCanDev:
     def __init__(self, ndev):
         self.running = False
+        
+        try:
+            socket.PF_CAN
+            socket.CAN_RAW
+        except:
+            print("Python 3.3 or later is needed for native SocketCan")
+            raise SystemExit(1)
+            
         self.socket = socket.socket(socket.PF_CAN, socket.SOCK_RAW,
                                     socket.CAN_RAW)
         self.ndev = ndev
