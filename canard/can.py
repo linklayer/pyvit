@@ -110,7 +110,7 @@ class Frame(object):
     def __str__(self):
         ext_str = 'standard'
         if self.is_extended_id:
-            ext_str == 'extended'
+            ext_str = 'extended'
         if self.frame_type == FrameType.DataFrame:
             type_str = "data"
         elif self.frame_type == FrameType.RemoteFrame:
