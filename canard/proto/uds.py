@@ -32,7 +32,7 @@ class UdsInterface(IsoTpProtocol):
             if time.time() - start_ts > timeout:
                 return None
 
-            response = self.cq.recv()
+            response = self.cq.recv(timeout=timeout)
 
             if response and response.id == ecu_id + 0x20:
                 result = self.parse_frame(response)
