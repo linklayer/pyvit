@@ -24,7 +24,7 @@ class UdsInterface(IsoTpProtocol):
         for f in request:
             self.cq.send(f)
 
-        # get a response message with the request ID + 20
+        # get a response message with the request ID + 40
         start_ts = time.time()
         result = None
 
@@ -32,9 +32,9 @@ class UdsInterface(IsoTpProtocol):
             if time.time() - start_ts > timeout:
                 return None
 
-            response = self.cq.recv()
+            response = self.cq.recv(timeout=timeout)
 
-            if response and response.id == ecu_id + 0x20:
+            if response and response.id == ecu_id + 0x40:
                 result = self.parse_frame(response)
 
         return result

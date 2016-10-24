@@ -24,7 +24,10 @@ class SocketCanDev:
         self.socket.bind((self.ndev,))
         self.start_time = time.time()
         self.running = True
-
+        
+    def stop(self):
+        pass
+    
     def recv(self):
         assert self.running, 'device not running'
         frame_format = "=IB3xBBBBBBBB"
