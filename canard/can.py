@@ -22,7 +22,7 @@ class Frame(object):
         is_extended_id (bool): is this frame an extended identifier frame?
     """
 
-    def __init__(self, id, data=[], frame_type=FrameType.DataFrame,
+    def __init__(self, id, data=None frame_type=FrameType.DataFrame,
                  is_extended_id=False):
         """ Initializer of Frame
         Args:
@@ -37,7 +37,10 @@ class Frame(object):
         self.is_extended_id = is_extended_id
 
         self.id = id
-        self.data = data
+        if data:
+            self.data = data
+        else:
+            self.data = []
         self.frame_type = frame_type
 
     @property
