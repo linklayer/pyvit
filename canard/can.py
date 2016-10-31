@@ -4,6 +4,7 @@ Defines the low-level implementation of CAN.
 
 """
 
+
 class FrameType:
     """ Enumerates the types of CAN frames """
     DataFrame = 1
@@ -22,7 +23,7 @@ class Frame(object):
         is_extended_id (bool): is this frame an extended identifier frame?
     """
 
-    def __init__(self, id, data=None frame_type=FrameType.DataFrame,
+    def __init__(self, id, data=None, frame_type=FrameType.DataFrame,
                  is_extended_id=False):
         """ Initializer of Frame
         Args:
@@ -91,7 +92,8 @@ class Frame(object):
 
     @property
     def dlc(self):
-        return len(data)
+        return len(self.data)
 
     def __str__(self):
-        return 'ID=0x%03X, DLC=%d, Data=[%s]' % (self.id, self.dlc, ', '.join(hex(b) for b in self.data))
+        return ('ID=0x%03X, DLC=%d, Data=[%s]' %
+                (self.id, self.dlc, ', '.join(hex(b) for b in self.data)))

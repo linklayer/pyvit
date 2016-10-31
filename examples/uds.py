@@ -1,9 +1,10 @@
 import sys
 
 from canard.proto.uds import UdsInterface
-from canard.hw.socketcan import SocketCanDev
+from canard.hw.cantact import CantactDev
 
-d = SocketCanDev('vcan0')
+d = CantactDev(sys.argv[1])
+d.set_bitrate(500000)
 d.start()
 
 p = UdsInterface(d)

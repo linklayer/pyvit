@@ -1,13 +1,14 @@
 from canard import can
 
+
 class LoopbackDev:
     def __init__(self):
-        self.buffer = []
-    
+        self._buffer = []
+
     def send(self, msg):
-        self.buffer.append(msg)
+        self._buffer.append(msg)
 
     def recv(self):
-        if len(self.buffer) == 0:
+        if len(self._buffer) == 0:
             return None
-        return self.buffer.pop()
+        return self._buffer.pop()

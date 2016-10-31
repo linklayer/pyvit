@@ -3,6 +3,7 @@ import io
 
 from .. import can
 
+
 class CantactDev:
     def __init__(self, port):
         self.ser = serial.Serial(port)
@@ -46,11 +47,11 @@ class CantactDev:
         frame = can.Frame(frame_id)
 
         # parse the DLC
-        frame.dlc = int(rx_str[4])
+        dlc = int(rx_str[4])
 
         # parse the data bytes
         data = []
-        for i in range(0, frame.dlc):
+        for i in range(0, dlc):
             data.append(int(rx_str[5+i*2:7+i*2], 16))
             frame.data = data
 

@@ -6,6 +6,7 @@ import time
 from .. import can
 from .socketcan import SocketCanDev
 
+
 class PcanDev(SocketCanDev):
     def __init__(self, minor_number=32, ndev="can0"):
         SocketCanDev.__init__(self, ndev=ndev)

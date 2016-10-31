@@ -1,6 +1,7 @@
 import json
 from .. import can, bus
 
+
 class JsonDbParser():
     def parse(self, filename):
         with open(filename, 'r') as f:

@@ -8,6 +8,7 @@ except ImportError:
 
 import time
 
+
 class CanQueue:
     def __init__(self, can_dev):
         self.can_dev = can_dev
@@ -44,7 +45,7 @@ class CanQueue:
 
         except queue.Empty:
             return None
-        
+
     def recv_task(self):
         while True:
             msg = self.can_dev.recv()

@@ -1,8 +1,10 @@
 import time
 from .. import can
 
+
 class LogPlayer:
     running = False
+
     def __init__(self, log_filename):
         self.logfile = open(log_filename, 'r')
 
@@ -23,7 +25,7 @@ class LogPlayer:
 
         # sleep until message occurs
         time.sleep(max((self.start_timestamp - time.time() + frame.timestamp),
-                        0))
+                   0))
 
         return frame
 
@@ -46,10 +48,9 @@ class LogPlayer:
         else:
             raise ValueError('invalid frame type')
 
-        frame.dlc = int(fields[3])
-        data = [int(fields[4], 0), int(fields[5], 0), int(fields[6], 0),
-                int(fields[7], 0), int(fields[8], 0), int(fields[9], 0),
-                int(fields[10], 0), int(fields[11], 0)]
-        frame.data = data
+        dlc = int(fields[3])
+        frame.data = []
+        for i in range(0, dlc):
+            frame.data.append(int(fields[i+4], 0))
 
         return frame

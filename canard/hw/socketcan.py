@@ -8,14 +8,14 @@ from .. import can
 class SocketCanDev:
     def __init__(self, ndev):
         self.running = False
-        
+
         try:
             socket.PF_CAN
             socket.CAN_RAW
         except:
             print("Python 3.3 or later is needed for native SocketCan")
             raise SystemExit(1)
-            
+
         self.socket = socket.socket(socket.PF_CAN, socket.SOCK_RAW,
                                     socket.CAN_RAW)
         self.ndev = ndev
@@ -24,10 +24,10 @@ class SocketCanDev:
         self.socket.bind((self.ndev,))
         self.start_time = time.time()
         self.running = True
-        
+
     def stop(self):
         pass
-    
+
     def recv(self):
         assert self.running, 'device not running'
         frame_format = "=IB3xBBBBBBBB"
@@ -44,8 +44,8 @@ class SocketCanDev:
             is_extended = True
 
         frame = can.Frame(id_, is_extended_id=is_extended)
-        frame.dlc = dlc
-        frame.data = [d0, d1, d2, d3, d4, d5, d6, d7]
+        # select the data bytes up to the DLC value
+        frame.data = [d0, d1, d2, d3, d4, d5, d6, d7][0:dlc]
         frame.timestamp = time.time() - self.start_time
 
         return frame

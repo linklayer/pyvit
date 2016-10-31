@@ -1,5 +1,6 @@
 from . import can
 
+
 class Bus:
     # message that belong to this bus
     _messages = []
@@ -30,6 +31,7 @@ class Bus:
             s = s + message.__str__()
         return s
 
+
 class Message(object):
     # signals that belong to this message, indexed by start bit
     _signals = {}
@@ -40,7 +42,8 @@ class Message(object):
 
     def add_signal(self, signal, start_bit):
         assert isinstance(signal, Signal), 'invalid signal'
-        assert isinstance(start_bit, int) and start_bit < 63, 'invalid start bit'
+        assert(isinstance(start_bit, int) and
+               (start_bit < 63, 'invalid start bit'))
         self._signals[start_bit] = signal
 
     def remove_signal(self, signal):
@@ -53,7 +56,7 @@ class Message(object):
         # combine 8 data bytes into single value
         frame_value = 0
         for i in range(0, frame.dlc):
-            if frame.data[i] != None:
+            if frame.data[i] is not None:
                 frame_value = frame_value + (frame.data[i] << (8 * i))
 
         result_signals = []
@@ -83,6 +86,7 @@ class Message(object):
         for start_bit, signal in self._signals.items():
             s = s + "\t" + signal.__str__() + "\n"
         return s
+
 
 class Signal:
     def __init__(self, name, bit_length, factor=1, offset=0):

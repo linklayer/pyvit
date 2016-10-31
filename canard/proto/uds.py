@@ -3,6 +3,7 @@ from canard.proto.isotp import IsoTpProtocol, IsoTpMessage
 from canard.utils.queue import CanQueue
 import time
 
+
 class UdsInterface(IsoTpProtocol):
     def __init__(self, can_dev):
         self.cq = CanQueue(can_dev)
@@ -10,10 +11,10 @@ class UdsInterface(IsoTpProtocol):
 
     def uds_request(self, ecu_id, service, payload, timeout=2):
         msg = IsoTpMessage(ecu_id)
-        
+
         # first byte is service ID, rest of message is payload
         msg.data = [service] + payload
-        
+
         # length is payload length plus 1 for service ID byte
         msg.length = len(payload) + 1
 
@@ -28,7 +29,7 @@ class UdsInterface(IsoTpProtocol):
         start_ts = time.time()
         result = None
 
-        while result == None:
+        while result is None:
             if time.time() - start_ts > timeout:
                 return None
 
