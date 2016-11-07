@@ -1,4 +1,3 @@
-from pyvit import can
 from pyvit.hw import cantact
 import sys
 

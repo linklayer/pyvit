@@ -1,9 +1,5 @@
 import os
-import struct
-import socket
-import time
 
-from .. import can
 from .socketcan import SocketCanDev
 
 

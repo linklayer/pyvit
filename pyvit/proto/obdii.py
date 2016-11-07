@@ -1,4 +1,3 @@
-from pyvit import can
 from pyvit.proto.isotp import IsoTpProtocol, IsoTpMessage
 import time
 

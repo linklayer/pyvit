@@ -1,4 +1,3 @@
-from pyvit import can
 from pyvit.proto.isotp import IsoTpProtocol, IsoTpMessage
 from pyvit.utils.queue import CanQueue
 import time

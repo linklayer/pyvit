@@ -1,4 +1,3 @@
-from pyvit import can
 import multiprocessing
 
 try:

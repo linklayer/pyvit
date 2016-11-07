@@ -1,7 +1,6 @@
 from pyvit import can
 from pyvit.hw import cantact
 from pyvit.utils.queue import CanQueue
-import time
 import sys
 
 dev = cantact.CantactDev(sys.argv[1])

@@ -1,5 +1,4 @@
 from pyvit import can
-from pyvit.hw import peak
 from pyvit.hw import socketcan
 
 dev = socketcan.SocketCanDev("vcan0")

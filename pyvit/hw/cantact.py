@@ -1,5 +1,4 @@
 import serial
-import io
 
 from .. import can
 

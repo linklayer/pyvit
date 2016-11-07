@@ -9,10 +9,7 @@ class SocketCanDev:
     def __init__(self, ndev):
         self.running = False
 
-        try:
-            socket.PF_CAN
-            socket.CAN_RAW
-        except:
+        if not hasattr(socket, 'PF_CAN') or not hasattr(socket, 'CAN_RAW'):
             print("Python 3.3 or later is needed for native SocketCan")
             raise SystemExit(1)
 

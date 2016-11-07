@@ -83,7 +83,7 @@ class Message(object):
 
     def __str__(self):
         s = "Message: %s, ID: 0x%X\n" % (self.name, self.arb_id)
-        for start_bit, signal in self._signals.items():
+        for _, signal in self._signals.items():
             s = s + "\t" + signal.__str__() + "\n"
         return s
 

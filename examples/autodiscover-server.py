@@ -1,6 +1,3 @@
-import sys
-
-from pyvit.proto.uds import UdsInterface
 from pyvit.hw.socketcan import SocketCanDev
 from pyvit import can
 

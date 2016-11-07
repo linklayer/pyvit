@@ -1,8 +1,7 @@
-from pyvit.proto.obdii import ObdInterface
-
-from pyvit.hw.cantact import CantactDev
-from pyvit.hw.loopback import LoopbackDev
 import sys
+
+from pyvit.proto.obdii import ObdInterface
+from pyvit.hw.cantact import CantactDev
 
 d = CantactDev(sys.argv[1])
 d.set_bitrate(500000)

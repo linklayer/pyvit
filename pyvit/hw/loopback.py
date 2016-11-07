@@ -1,6 +1,3 @@
-from pyvit import can
-
-
 class LoopbackDev:
     def __init__(self):
         self._buffer = []

@@ -1,5 +1,5 @@
 import json
-from .. import can, bus
+from .. import bus
 
 
 class JsonDbParser():

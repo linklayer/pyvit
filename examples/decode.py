@@ -1,4 +1,3 @@
-from pyvit import can, bus
 from pyvit.file import jsondb
 from pyvit.hw import socketcan
 

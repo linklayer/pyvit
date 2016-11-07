@@ -15,7 +15,6 @@ class LogPlayer:
 
     def recv(self):
         assert self.running, 'not running'
-        last_timestamp = 0
         line = self.logfile.readline()
         if line == '':
             return None
