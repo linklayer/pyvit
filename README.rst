@@ -12,7 +12,7 @@ pyvit can be installed with Pip: ``pip install pyvit``
 
 See the `Getting Started`_ document for detailed instructions.
 
-.. _`Getting Started`: https://github.com/linklayer/pyvit/blob/master/docs/getting-started.md
+.. _`Getting Started`: https://github.com/linklayer/pyvit/blob/master/docs/getting-started.rst
 
 Contributing
 ------------
