@@ -32,8 +32,8 @@ class LogPlayer:
     def _log_to_frame(self, line):
         fields = line.split(' ')
 
-        id = int(fields[1], 0)
-        frame = can.Frame(id)
+        arb_id = int(fields[1], 0)
+        frame = can.Frame(arb_id)
 
         frame.timestamp = float(fields[0])
 

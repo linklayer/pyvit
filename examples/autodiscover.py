@@ -1,7 +1,7 @@
 import sys
 
-from canard.proto.uds import UdsInterface
-from canard.hw.socketcan import SocketCanDev
+from pyvit.proto.uds import UdsInterface
+from pyvit.hw.socketcan import SocketCanDev
 
 d = SocketCanDev('vcan0')
 d.start()

@@ -1,6 +1,6 @@
-from canard import can
-from canard.hw import peak
-from canard.hw import socketcan
+from pyvit import can
+from pyvit.hw import peak
+from pyvit.hw import socketcan
 
 dev = socketcan.SocketCanDev("vcan0")
 

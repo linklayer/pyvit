@@ -1,6 +1,6 @@
-from canard import can
-from canard.hw import cantact
-from canard.utils.queue import CanQueue
+from pyvit import can
+from pyvit.hw import cantact
+from pyvit.utils.queue import CanQueue
 import time
 import sys
 
@@ -17,6 +17,6 @@ req.data = [0x10, 0xFF, 0xFF]
 
 cq.send(req)
 
-print cq.recv(filter=0x625, timeout=10)
+print cq.recv(arb_id=0x625, timeout=10)
 
 cq.stop()

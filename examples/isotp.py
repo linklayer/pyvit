@@ -1,5 +1,5 @@
-from canard.proto.isotp import IsoTpProtocol, IsoTpMessage
-from canard import can
+from pyvit.proto.isotp import IsoTpProtocol, IsoTpMessage
+from pyvit import can
 
 p = IsoTpProtocol()
 
@@ -21,7 +21,7 @@ m.length = 0xFF
 for fr in p.generate_frames(m):
     print fr
 
-m.data = [1,2,3,4]
+m.data = [1, 2, 3, 4]
 m.length = 4
 for fr in p.generate_frames(m):
     print fr

@@ -1,7 +1,7 @@
-from canard.proto.obdii import ObdInterface
+from pyvit.proto.obdii import ObdInterface
 
-from canard.hw.cantact import CantactDev
-from canard.hw.loopback import LoopbackDev
+from pyvit.hw.cantact import CantactDev
+from pyvit.hw.loopback import LoopbackDev
 import sys
 
 d = CantactDev(sys.argv[1])

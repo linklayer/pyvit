@@ -1,14 +1,13 @@
 ======
-CANard
+pyvit: Python Vehicle Interface Toolkit
 ======
 
-CANard is a library for dealing with Controller Area Network (CAN) data from
-Python.
+pyvit is a toolkit for interfacing with cars from Python.
 
 Using a CANtact
 ===============
 
-The CANtact_ tool is directly supported by CANard. Using it
+The CANtact_ tool is directly supported by pyvit. Using it
 requires pySerial, which can be installed with pip::
 
     pip install pyserial
@@ -22,10 +21,10 @@ This examples goes on bus and prints received messages:
 
 .. code:: python
 
-    from canard import can
-    from canard.hw import cantact
+    from pyvit import can
+    from pyvit.hw import cantact
 
-    dev = cantact.CantactDev("/dev/cu.usbmodem14511")
+    dev = pyvit.CantactDev("/dev/cu.usbmodem14511")
 
     dev.start()
     while True:
@@ -72,8 +71,8 @@ The device can now be accessed as a ``SocketCanDev``. This examples goes on bus 
 
 .. code:: python
 
-    from canard import can
-    from canard.hw import socketcan
+    from pyvit import can
+    from pyvit.hw import socketcan
 
     dev = socketcan.SocketCanDev("can0")
 

@@ -43,8 +43,8 @@ class CantactDev:
             rx_str = rx_str + self.ser.read()
 
         # parse the id, create a frame
-        frame_id = int(rx_str[1:4], 16)
-        frame = can.Frame(frame_id)
+        arb_id = int(rx_str[1:4], 16)
+        frame = can.Frame(arb_id)
 
         # parse the DLC
         dlc = int(rx_str[4])
@@ -59,7 +59,7 @@ class CantactDev:
 
     def send(self, frame):
         # add type, id, and dlc to string
-        tx_str = "%s%03X%d" % ('t', frame.id, frame.dlc)
+        tx_str = "%s%03X%d" % ('t', frame.arb_id, frame.dlc)
 
         # add data bytes to string
         for i in range(0, frame.dlc):

@@ -1,4 +1,4 @@
-from canard import can
+from pyvit import can
 
 
 class LoopbackDev:

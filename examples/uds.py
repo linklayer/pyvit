@@ -1,7 +1,7 @@
 import sys
 
-from canard.proto.uds import UdsInterface
-from canard.hw.cantact import CantactDev
+from pyvit.proto.uds import UdsInterface
+from pyvit.hw.cantact import CantactDev
 
 d = CantactDev(sys.argv[1])
 d.set_bitrate(500000)

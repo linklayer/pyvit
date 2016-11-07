@@ -1,5 +1,5 @@
-from canard import can
-from canard.hw import cantact
+from pyvit import can
+from pyvit.hw import cantact
 import sys
 
 dev = cantact.CantactDev(sys.argv[1])

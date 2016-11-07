@@ -19,7 +19,7 @@ class Logger:
 
         line = ("%f 0x%X %s %d 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X\n" %
                 (frame.timestamp,
-                 frame.id,
+                 frame.arb_id,
                  type_char,
                  frame.dlc,
                  frame.data[0],

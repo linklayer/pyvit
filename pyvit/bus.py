@@ -22,7 +22,7 @@ class Bus:
     def parse_frame(self, frame):
         assert isinstance(frame, can.Frame), 'invalid frame'
         for message in self._messages:
-            if message.id == frame.id:
+            if message.arb_id == frame.arb_id:
                 return message.parse_frame(frame)
 
     def __str__(self):
@@ -36,9 +36,9 @@ class Message(object):
     # signals that belong to this message, indexed by start bit
     _signals = {}
 
-    def __init__(self, name, id):
+    def __init__(self, name, arb_id):
         self.name = name
-        self.id = id
+        self.arb_id = arb_id
 
     def add_signal(self, signal, start_bit):
         assert isinstance(signal, Signal), 'invalid signal'
@@ -51,7 +51,7 @@ class Message(object):
 
     def parse_frame(self, frame):
         assert isinstance(frame, can.Frame), 'invalid frame'
-        assert frame.id == self.id, 'frame id does not match message id'
+        assert frame.arb_id == self.arb_id, 'frame id does not match msg id'
 
         # combine 8 data bytes into single value
         frame_value = 0
@@ -82,7 +82,7 @@ class Message(object):
         return result_signals
 
     def __str__(self):
-        s = "Message: %s, ID: 0x%X\n" % (self.name, self.id)
+        s = "Message: %s, ID: 0x%X\n" % (self.name, self.arb_id)
         for start_bit, signal in self._signals.items():
             s = s + "\t" + signal.__str__() + "\n"
         return s

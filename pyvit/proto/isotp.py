@@ -5,9 +5,9 @@ class IsoTpProtocol:
     def __init__(self):
         pass
 
-    def _start_msg(self, id=0):
+    def _start_msg(self, arb_id=0):
         # initialize reading of a message
-        self.msg = IsoTpMessage(id)
+        self.msg = IsoTpMessage(arb_id)
         self.data_byte_count = 0
         self.sequence_number = 0
 
@@ -105,7 +105,7 @@ class IsoTpProtocol:
         if msg.length < 8:
             # message is less than 8 bytes, use single frame
 
-            sf = can.Frame(msg.id)
+            sf = can.Frame(msg.arb_id)
 
             # first byte is data length
             sf.data = [msg.length] + msg.data
@@ -116,7 +116,7 @@ class IsoTpProtocol:
             # message must be composed of FF and CF
 
             # first frame
-            ff = can.Frame(msg.id)
+            ff = can.Frame(msg.arb_id)
 
             data = []
             # FF pci type and msb of length
@@ -133,7 +133,7 @@ class IsoTpProtocol:
             sequence_number = 1
 
             while bytes_sent < msg.length:
-                cf = can.Frame(msg.id)
+                cf = can.Frame(msg.arb_id)
                 data_bytes_in_msg = min(msg.length - bytes_sent, 7)
 
                 data = []
@@ -153,10 +153,10 @@ class IsoTpProtocol:
 
 
 class IsoTpMessage:
-    def __init__(self, id):
+    def __init__(self, arb_id):
         self.length = 0
         self.data = []
-        self.id = id
+        self.arb_id = arb_id
 
     # TODO: property for length and data values with checks
 

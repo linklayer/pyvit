@@ -1,9 +1,9 @@
-from canard import can, bus
-from canard.file import jsondb
-from canard.hw import socketcan
+from pyvit import can, bus
+from pyvit.file import jsondb
+from pyvit.hw import socketcan
 
 parser = jsondb.JsonDbParser()
-b = parser.parse('example_db.json')
+b = parser.parse('examples/example_db.json')
 
 dev = socketcan.SocketCanDev('vcan0')
 dev.start()

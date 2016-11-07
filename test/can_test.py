@@ -1,4 +1,4 @@
-import canard.can as can
+import pyvit.can as can
 import unittest
 
 
@@ -6,30 +6,30 @@ class CanTest(unittest.TestCase):
     def setUp(self):
         self.frame = can.Frame(0)
 
-    def test_id(self):
+    def test_arb_id(self):
         # test non-integer fails
         with self.assertRaises(AssertionError):
-            self.frame.id = 'boo!'
+            self.frame.arb_id = 'boo!'
 
         # test negative id fails
         with self.assertRaises(ValueError):
-            self.frame.id = -1
+            self.frame.arb_id = -1
 
         # test standard id out of range
         self.frame.is_extended_id = False
         with self.assertRaises(ValueError):
-            self.frame.id = 0x800
+            self.frame.arb_id = 0x800
         # test standard id in range
-        self.frame.id = 0x7FF
-        self.frame.id = 0x0
+        self.frame.arb_id = 0x7FF
+        self.frame.arb_id = 0x0
 
         # test extended id out of range
         self.frame.is_extended_id = True
         with self.assertRaises(ValueError):
-            self.frame.id = 0x2FFFFFFF
+            self.frame.arb_id = 0x2FFFFFFF
         # test extended id in range
-        self.frame.id = 0x1FFFFFFF
-        self.frame.id = 0x0
+        self.frame.arb_id = 0x1FFFFFFF
+        self.frame.arb_id = 0x0
 
     def test_data(self):
         # test too many bytes causes error
@@ -55,7 +55,7 @@ class CanTest(unittest.TestCase):
     def test_init(self):
         frame = can.Frame(0x55, [1, 2, 3, 4, 5, 6], can.FrameType.ErrorFrame,
                           True)
-        self.assertEqual(frame.id, 0x55)
+        self.assertEqual(frame.arb_id, 0x55)
         self.assertEqual(frame.data, [1, 2, 3, 4, 5, 6])
         self.assertEqual(frame.frame_type, can.FrameType.ErrorFrame)
         self.assertEqual(frame.is_extended_id, True)

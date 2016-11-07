@@ -17,17 +17,17 @@ class Frame(object):
     """ Represents a CAN Frame
 
     Attributes:
-        id (int): CAN identifier of the Frame
+        arb_id (int): Arbitration identifier of the Frame
         data (list of int): CAN data bytes
         frame_type (int): type of CAN frame
         is_extended_id (bool): is this frame an extended identifier frame?
     """
 
-    def __init__(self, id, data=None, frame_type=FrameType.DataFrame,
+    def __init__(self, arb_id, data=None, frame_type=FrameType.DataFrame,
                  is_extended_id=False):
         """ Initializer of Frame
         Args:
-            id (int): identifier of CAN frame
+            arb_id (int): identifier of CAN frame
             data (list, optional): data of CAN frame, defaults to empty list
             frame_type (int, optional): type of frame, defaults to
                                         FrameType.DataFrame
@@ -37,7 +37,7 @@ class Frame(object):
 
         self.is_extended_id = is_extended_id
 
-        self.id = id
+        self.arb_id = arb_id
         if data:
             self.data = data
         else:
@@ -45,22 +45,22 @@ class Frame(object):
         self.frame_type = frame_type
 
     @property
-    def id(self):
-        return self._id
+    def arb_id(self):
+        return self._arb_id
 
-    @id.setter
-    def id(self, value):
+    @arb_id.setter
+    def arb_id(self, value):
         # ensure value is an integer
-        assert isinstance(value, int), 'id must be an integer'
+        assert isinstance(value, int), 'arbitration id must be an integer'
         # ensure standard id is in range
         if value >= 0 and value <= 0x7FF:
-            self._id = value
+            self._arb_id = value
         # otherwise, check if frame is extended
         elif self.is_extended_id and value > 0x7FF and value <= 0x1FFFFFFF:
-            self._id = value
+            self._arb_id = value
         # otherwise, id is not valid
         else:
-            raise ValueError('CAN ID out of range')
+            raise ValueError('Arbitration ID out of range')
 
     @property
     def data(self):
@@ -96,4 +96,4 @@ class Frame(object):
 
     def __str__(self):
         return ('ID=0x%03X, DLC=%d, Data=[%s]' %
-                (self.id, self.dlc, ', '.join(hex(b) for b in self.data)))
+                (self.arb_id, self.dlc, ', '.join(hex(b) for b in self.data)))

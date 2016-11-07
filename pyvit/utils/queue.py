@@ -1,4 +1,4 @@
-from canard import can
+from pyvit import can
 import multiprocessing
 
 try:
@@ -30,14 +30,14 @@ class CanQueue:
     def send(self, msg):
         self.send_queue.put(msg)
 
-    def recv(self, timeout=1, filter=None):
+    def recv(self, timeout=1, arb_id=None):
         try:
             start_time = time.time()
             while True:
                 msg = self.recv_queue.get(timeout=timeout)
-                if not filter:
+                if not arb_id:
                     return msg
-                elif filter == msg.id:
+                elif arb_id == msg.id:
                     return msg
                 # ensure we haven't gone over the timeout
                 if time.time() - start_time > timeout:

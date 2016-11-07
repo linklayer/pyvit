@@ -1,19 +1,26 @@
-from distutils.core import setup
+from setuptools import setup, find_packages
 
 setup(
-    name='CANard',
-    version='0.2.2',
+    name='pyvit',
+    version='0.1.0',
+    packages=find_packages(),
+    scripts=[],
+
+    install_requires=[
+        'pyserial>=3.2.1'
+    ],
+
+    test_suite='test',
+
     author='Eric Evenchick',
     author_email='eric@evenchick.com',
-    packages=['canard', 'canard.test', 'canard.hw', 'canard.utils',
-              'canard.proto'],
-    scripts=[],
-    url='http://github.com/ericevenchick/CANard',
+    url='http://github.com/linklayer/pyvit',
     license='GPLv3',
-    description='Library for interacting with Controller Area Network (CAN)',
+    description='Python Vehicle Inteface Toolkit',
     long_description=open('README.rst').read(),
     classifiers=['Development Status :: 3 - Alpha',
-                 'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+                 ('License :: OSI Approved ::',
+                  'GNU General Public License v3 (GPLv3)'),
                  'Topic :: Software Development :: Libraries',
                  'Topic :: Software Development :: Embedded Systems']
 )
