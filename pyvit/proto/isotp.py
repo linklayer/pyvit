@@ -40,10 +40,10 @@ class IsotpProtocol:
             if not (sf_dl > 0 and sf_dl < 8):
                 raise ValueError("invalid SF_DL parameter for single frame")
 
-            self.data.length = sf_dl
+            self.data_len = sf_dl
 
             # get data bytes from this frame
-            self.data_len = frame.data[1:sf_dl+1]
+            self.data = frame.data[1:sf_dl+1]
 
             # single frame, we're done!
             return self._end_msg()

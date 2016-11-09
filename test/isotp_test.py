@@ -33,5 +33,33 @@ class IsotpTest(unittest.TestCase):
         self.assertEqual(frames[0].data, [0x10, 8, 1, 2, 3, 4, 5, 6])
         self.assertEqual(frames[1].data, [0x21, 7, 8])
 
+    def test_isotp_roundtrip_single(self):
+        """ Test roundtrip of a single frame isotp message """
+        tx_data = [1, 2, 3, 4, 5]
+        for f in self.proto.generate_frames(0x123, tx_data):
+            self.dev.send(f)
+
+        while True:
+            f = self.dev.recv()
+            rx_data = self.proto.parse_frame(f)
+            if rx_data is not None:
+                break
+
+        self.assertEqual(tx_data, rx_data)
+
+    def test_isotp_roundtrip_single(self):
+        """ Test roundtrip of a multiple frame isotp message """
+        tx_data = range(0, 100)
+        for f in self.proto.generate_frames(0x123, tx_data):
+            self.dev.send(f)
+
+        while True:
+            f = self.dev.recv()
+            rx_data = self.proto.parse_frame(f)
+            if rx_data is not None:
+                break
+
+        self.assertEqual(tx_data, rx_data)
+
 if __name__ == '__main__':
     unittest.main()
