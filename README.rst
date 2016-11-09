@@ -1,6 +1,6 @@
-======
+=======================================
 pyvit: Python Vehicle Interface Toolkit
-======
+=======================================
 
 .. image:: https://circleci.com/gh/linklayer/pyvit/tree/master.svg?style=shield
     :target: https://circleci.com/gh/linklayer/pyvit/tree/master

@@ -19,7 +19,7 @@ setup(
     description='Python Vehicle Inteface Toolkit',
     long_description=open('README.rst').read(),
     classifiers=['Development Status :: 3 - Alpha',
-                 ('License :: OSI Approved ::',
+                 ('License :: OSI Approved :: ' +
                   'GNU General Public License v3 (GPLv3)'),
                  'Topic :: Software Development :: Libraries',
                  'Topic :: Software Development :: Embedded Systems']
