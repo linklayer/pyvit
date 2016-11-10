@@ -47,7 +47,7 @@ class IsotpTest(unittest.TestCase):
 
         self.assertEqual(tx_data, rx_data)
 
-    def test_isotp_roundtrip_single(self):
+    def test_isotp_roundtrip_multiple(self):
         """ Test roundtrip of a multiple frame isotp message """
         tx_data = range(0, 100)
         for f in self.proto.generate_frames(0x123, tx_data):
