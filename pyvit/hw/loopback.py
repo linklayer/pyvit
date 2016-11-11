@@ -1,5 +1,5 @@
 from multiprocessing import Queue
-from Queue import Empty
+
 
 class LoopbackDev:
     def __init__(self):

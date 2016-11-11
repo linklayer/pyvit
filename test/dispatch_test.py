@@ -44,6 +44,5 @@ class DispatchTest(unittest.TestCase):
         self.assertEqual(rx2, tx2)
         self.assertEqual(rx3, tx3)
 
-    
 if __name__ == '__main__':
     unittest.main()
