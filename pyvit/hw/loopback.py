@@ -1,14 +1,31 @@
-from collections import deque
-
+from multiprocessing import Queue
+from Queue import Empty
 
 class LoopbackDev:
     def __init__(self):
-        self._buffer = deque()
+        self._queue = Queue()
+        self.running = False
 
-    def send(self, msg):
-        self._buffer.appendleft(msg)
+    def start(self):
+        if self.running:
+            raise Exception('device already started')
+
+        self.running = True
+
+    def stop(self):
+        if not self.running:
+            raise Exception('device not started')
+
+        self.running = False
+
+    def send(self, data):
+        if not self.running:
+            raise Exception('device not started')
+
+        self._queue.put(data)
 
     def recv(self):
-        if len(self._buffer) == 0:
-            return None
-        return self._buffer.pop()
+        if not self.running:
+            raise Exception('device not started')
+
+        return self._queue.get()

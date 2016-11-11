@@ -23,7 +23,7 @@ class Frame(object):
         is_extended_id (bool): is this frame an extended identifier frame?
     """
 
-    def __init__(self, arb_id, data=None, frame_type=FrameType.DataFrame,
+    def __init__(self, arb_id, data=[], frame_type=FrameType.DataFrame,
                  is_extended_id=False):
         """ Initializer of Frame
         Args:
@@ -36,12 +36,8 @@ class Frame(object):
         """
 
         self.is_extended_id = is_extended_id
-
         self.arb_id = arb_id
-        if data:
-            self.data = data
-        else:
-            self.data = []
+        self.data = data
         self.frame_type = frame_type
 
     @property
@@ -97,3 +93,9 @@ class Frame(object):
     def __str__(self):
         return ('ID=0x%03X, DLC=%d, Data=[%s]' %
                 (self.arb_id, self.dlc, ', '.join(hex(b) for b in self.data)))
+
+    def __eq__(self, other):
+        return (self.arb_id == other.arb_id and
+                self.data == other.data and
+                self.frame_type == other.frame_type and
+                self.is_extended_id == other.is_extended_id)
