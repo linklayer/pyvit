@@ -11,8 +11,12 @@ class Dispatcher:
         self._device = device
         self._rx_queues = []
         self._tx_queue = Queue()
+        self._running = False
 
     def add_receiver(self, rx_queue):
+        if self.is_running:
+            raise Exception('dispatcher must be stopped to add receiver')
+
         # ensure the receive queue is a queue
         if not type(rx_queue) is multiprocessing.queues.Queue:
             raise ValueError('invalid receive queue, %s' % type(rx_queue))
@@ -23,6 +27,9 @@ class Dispatcher:
         self._rx_queues.append(rx_queue)
 
     def remove_receiver(self, rx_queue):
+        if self.is_runnning():
+            raise Exception('dispatcher must be stopped to remove receiver')
+
         # check the receive queue is in the dispatcher
         if not rx_queue in self._rx_queues:
             raise ValueError('rx_queue not in dispatcher')
@@ -30,20 +37,35 @@ class Dispatcher:
             self._rx_queue.remove(rx_queue)
 
     def start(self):
+        if self.is_running:
+            raise Exception('dispatcher already running')
+
         self._device.start()
         
-        self.send_process = Process(target=self._send_loop)
-        self.recv_process = Process(target=self._recv_loop)
-        self.recv_process.start()
-        self.send_process.start()
+        self._send_process = Process(target=self._send_loop)
+        self._recv_process = Process(target=self._recv_loop)
+        self._recv_process.start()
+        self._send_process.start()
+        self._running = True
 
 
     def stop(self):
-        self.recv_process.terminate()
-        self.send_process.terminate()
+        if not self.is_running:
+            raise Exception('dispatcher not running')
+
+        self._recv_process.terminate()
+        self._send_process.terminate()
         self._device.stop()
+        self._running = False
+
+    @property
+    def is_running(self):
+        return self._running
 
     def send(self, data):
+        if not self.is_running:
+            raise Exception('dispatcher not running')
+
         self._tx_queue.put(data)
 
     def _send_loop(self):

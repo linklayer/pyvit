@@ -7,6 +7,10 @@ from pyvit import can
 class LoopbackTest(unittest.TestCase):
     def setUp(self):
         self.dev = LoopbackDev()
+        self.dev.start()
+
+    def tearDown(self):
+        self.dev.stop()
 
     def test_tx_rx_one(self):
         """ Test transmission and reception of one frame """
