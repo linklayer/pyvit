@@ -56,7 +56,8 @@ class SocketCanDev:
         if frame.is_extended_id:
             arb_id |= 0x80000000
 
-        data = frame.data
+        # get data, padded to 8 bytes
+        data = frame.data + [0] * (8 - len(frame.data))
         packet = struct.pack(frame_format, arb_id, frame.dlc, 0xff, 0xff, 0xff,
                              data[0], data[1], data[2], data[3],
                              data[4], data[5], data[6], data[7])
