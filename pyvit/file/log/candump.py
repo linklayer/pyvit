@@ -24,9 +24,20 @@ class CandumpFile:
         return can.Frame(arb_id, data=data)
 
     def _frame_to_str(self, frame):
-        # insert fake timestamp and interface
-        # TODO: should we have this in the frame definition?
-        string = '(1.0) can0 '
+        string = ''
+
+        # insert timestamp if set
+        if frame.timestamp:
+           string += '(%f) ' % frame.timestamp
+        else:
+            string += '(0.0) ' 
+
+        # insert interface if set
+        if frame.interface:
+           string += '%s ' % frame.interface
+        else:
+           string += 'can0 '
+            
         # add ID and '#' character
         string += ('%03X' % frame.arb_id) + '#'
 

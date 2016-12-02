@@ -24,7 +24,7 @@ class Frame(object):
     """
 
     def __init__(self, arb_id, data=None, frame_type=FrameType.DataFrame,
-                 is_extended_id=False):
+                 is_extended_id=False, interface=None, timestamp=None):
         """ Initializer of Frame
         Args:
             arb_id (int): identifier of CAN frame
@@ -33,6 +33,10 @@ class Frame(object):
                                         FrameType.DataFrame
             is_extended_id (bool, optional): is the frame an extended id frame?
                                              defaults to False
+            interface (string, optional): name of the interface the frame is on
+                                          defaults to None
+            ts (float, optional): time frame was received at
+                                  defaults to None
         """
 
         self.is_extended_id = is_extended_id
@@ -42,6 +46,8 @@ class Frame(object):
         else:
             self.data = []
         self.frame_type = frame_type
+        self.interface = interface
+        self.timestamp = timestamp
 
     @property
     def arb_id(self):
@@ -95,7 +101,7 @@ class Frame(object):
 
     def __str__(self):
         return ('ID=0x%03X, DLC=%d, Data=[%s]' %
-                (self.arb_id, self.dlc, ', '.join(hex(b) for b in self.data)))
+                (self.arb_id, self.dlc, ', '.join(('%02X' % b) for b in self.data)))
 
     def __eq__(self, other):
         return (self.arb_id == other.arb_id and
