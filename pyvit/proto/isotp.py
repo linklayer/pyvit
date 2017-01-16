@@ -76,6 +76,11 @@ class IsotpInterface:
 
             self.sequence_number = self.sequence_number + 1
 
+            # send a flow control frame
+            # TODO: these block size and ST_min should be customizable
+            fc = can.Frame(self.tx_arb_id, data=[0x30, 0, 0])
+            self._dispatcher.send(fc)
+
         elif pci_type == 2:
             # consecutive frame
 
@@ -123,7 +128,7 @@ class IsotpInterface:
             try:
                 rx_frame = self._recv_queue.get(timeout=timeout)
             except Empty:
-                return None
+                raise Exception("timeout receiving ISOTP data")
 
             if rx_frame.arb_id == self.rx_arb_id:
                 if self.debug:
@@ -133,7 +138,7 @@ class IsotpInterface:
             # check timeout, since we may be receiving messages that do not
             # have the required arb_id
             if time.time() - start > timeout:
-                return None
+                raise Exception("timeout receiving ISOTP data")
 
         return data
 
@@ -175,6 +180,7 @@ class IsotpInterface:
             sequence_number = 1
 
             # now we must wait on a flow control frame
+            # TODO: do something real with ST_min and block size
             while True:
                 rx_frame = self._recv_queue.get()
                 if (rx_frame.arb_id == self.rx_arb_id and
