@@ -1,32 +1,18 @@
-from pyvit.proto.isotp import IsoTpProtocol, IsoTpMessage
+from pyvit.proto.isotp import IsotpInterface
 import time
 
 
-class ObdInterface(IsoTpProtocol):
-    def __init__(self, can_dev):
-        self.can_dev = can_dev
+class ObdInterface(IsotpInterface):
+    def __init__(self, dispatcher, tx_arb_id=0x7DF, rx_arb_id=0x7E8):
+        super().__init__(dispatcher, tx_arb_id, rx_arb_id)
 
-    def obd_request(self, ecu_id, mode, pid_code, timeout=2):
-        msg = IsoTpMessage(ecu_id)
-
+    def obd_request(self, mode, pid=None, timeout=2):
         # pack data according to OBD-II standard
-        msg.data = [mode, pid_code]
-
-        # standard OBD-II request messages have length of 2
-        msg.length = 2
-
-        # this will always generate a single frame
-        request = self.generate_frames(msg)[0]
+        request = [mode]
+        if pid is not None:
+            request.append(pid)
 
         # send the request
-        self.can_dev.send(request)
+        self.send(request)
 
-        # get a response message with the same ID
-        response = self.can_dev.recv()
-        start_ts = time.time()
-        while response.id != ecu_id + 0x20:
-            response = self.can_dev.recv()
-            if time.time() - start_ts > timeout:
-                return None
-
-        return self.parse_frame(response)
+        return self.recv()

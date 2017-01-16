@@ -101,7 +101,8 @@ class Frame(object):
 
     def __str__(self):
         return ('ID=0x%03X, DLC=%d, Data=[%s]' %
-                (self.arb_id, self.dlc, ', '.join(('%02X' % b) for b in self.data)))
+                (self.arb_id, self.dlc, ', '.join(('%02X' % b)
+                                                  for b in self.data)))
 
     def __eq__(self, other):
         return (self.arb_id == other.arb_id and

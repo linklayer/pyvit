@@ -1,9 +1,20 @@
+import time
+from multiprocessing import Queue
+from queue import Empty
+
 from .. import can
 
 
-class IsotpProtocol:
-    def __init__(self):
-        pass
+class IsotpInterface:
+    debug = False
+
+    def __init__(self, dispatcher, tx_arb_id, rx_arb_id):
+        self._dispatcher = dispatcher
+        self.tx_arb_id = tx_arb_id
+        self.rx_arb_id = rx_arb_id
+        self._recv_queue = Queue()
+
+        self._dispatcher.add_receiver(self._recv_queue)
 
     def _start_msg(self, arb_id=0):
         # initialize reading of a message
@@ -38,7 +49,7 @@ class IsotpProtocol:
 
             # check that the data length is valid for a SF
             if not (sf_dl > 0 and sf_dl < 8):
-                raise ValueError("invalid SF_DL parameter for single frame")
+                raise ValueError('invalid SF_DL parameter for single frame')
 
             self.data_len = sf_dl
 
@@ -70,14 +81,14 @@ class IsotpProtocol:
 
             # check that a FF has been sent
             if self.data_len == 0:
-                raise ValueError("consecutive frame before first frame")
+                raise ValueError('consecutive frame before first frame')
 
             # frame's sequence number is lower nybble of byte 0
             frame_sequence_number = frame.data[0] & 0xF
 
             # check the sequence number
             if frame_sequence_number != self.sequence_number:
-                raise ValueError("invalid sequence number!")
+                raise ValueError('invalid sequence number!')
 
             bytes_remaining = self.data_len - self.data_byte_count
 
@@ -89,7 +100,7 @@ class IsotpProtocol:
             if self.data_byte_count == self.data_len:
                 return self._end_msg()
             elif self.data_byte_count > self.data_len:
-                raise ValueError("invalid data length mismatch")
+                raise ValueError('data length mismatch')
 
             # wrap around when sequence number reaches 0xF
             self.sequence_number = self.sequence_number + 1
@@ -101,25 +112,51 @@ class IsotpProtocol:
             pass
 
         else:
-            raise ValueError("invalid PCItype parameter")
+            raise ValueError('invalid PCItype parameter')
 
-    def generate_frames(self, arb_id, data):
-        res = []
+    def recv(self, timeout=1):
+        data = None
+        start = time.time()
+
+        while data is None:
+            # attempt to get data, returning None if we timeout
+            try:
+                rx_frame = self._recv_queue.get(timeout=timeout)
+            except Empty:
+                return None
+
+            if rx_frame.arb_id == self.rx_arb_id:
+                if self.debug:
+                    print(rx_frame)
+                data = self.parse_frame(rx_frame)
+
+            # check timeout, since we may be receiving messages that do not
+            # have the required arb_id
+            if time.time() - start > timeout:
+                return None
+
+        return data
+
+    def send(self, data):
+        if len(data) > 4095:
+            raise ValueError('ISOTP data must be <= 4095 bytes long')
         if len(data) < 8:
             # message is less than 8 bytes, use single frame
 
-            sf = can.Frame(arb_id)
+            sf = can.Frame(self.tx_arb_id)
 
             # first byte is data length
             sf.data = [len(data)] + data
 
-            res.append(sf)
+            if self.debug:
+                print(sf)
+            self._dispatcher.send(sf)
 
         else:
             # message must be composed of FF and CF
 
             # first frame
-            ff = can.Frame(arb_id)
+            ff = can.Frame(self.tx_arb_id)
 
             frame_data = []
             # FF pci type and msb of length
@@ -130,13 +167,23 @@ class IsotpProtocol:
             frame_data = frame_data + data[0:6]
 
             ff.data = frame_data
-            res.append(ff)
+            if self.debug:
+                print(ff)
+            self._dispatcher.send(ff)
 
             bytes_sent = 6
             sequence_number = 1
 
+            # now we must wait on a flow control frame
+            while True:
+                rx_frame = self._recv_queue.get()
+                if (rx_frame.arb_id == self.rx_arb_id and
+                        rx_frame.data[0] == 0x30):
+                    # flow control frame received
+                    break
+
             while bytes_sent < len(data):
-                cf = can.Frame(arb_id)
+                cf = can.Frame(self.tx_arb_id)
                 data_bytes_in_msg = min(len(data) - bytes_sent, 7)
 
                 frame_data = []
@@ -144,7 +191,9 @@ class IsotpProtocol:
                 frame_data = (frame_data +
                               data[bytes_sent:bytes_sent+data_bytes_in_msg])
                 cf.data = frame_data
-                res.append(cf)
+                if self.debug:
+                    print(ff)
+                self._dispatcher.send(cf)
 
                 sequence_number = sequence_number + 1
                 # wrap around when sequence number reaches 0xF
@@ -152,5 +201,3 @@ class IsotpProtocol:
                     sequence_number = 0
 
                 bytes_sent = bytes_sent + data_bytes_in_msg
-
-        return res
