@@ -2,6 +2,7 @@ import re
 
 from pyvit import can
 
+
 class CandumpFile:
     def __init__(self, filename):
         self.filename = filename
@@ -14,10 +15,10 @@ class CandumpFile:
         # the data strig follows the '#'
         datastr = fields[2].split('#')[1]
 
-        # iterate over the data string and collect the bytes, represented as hex
+        # iterate over the data string and collect the bytes
         data = []
         for i in range(0, len(datastr)):
-            if i%2 == 0:
+            if i % 2 == 0:
                 data.append(int(datastr[i:i+2], 16))
 
         # assemble the frame
@@ -28,16 +29,16 @@ class CandumpFile:
 
         # insert timestamp if set
         if frame.timestamp:
-           string += '(%f) ' % frame.timestamp
+            string += '(%f) ' % frame.timestamp
         else:
-            string += '(0.0) ' 
+            string += '(0.0) '
 
         # insert interface if set
         if frame.interface:
-           string += '%s ' % frame.interface
+            string += '%s ' % frame.interface
         else:
-           string += 'can0 '
-            
+            string += 'can0 '
+
         # add ID and '#' character
         string += ('%03X' % frame.arb_id) + '#'
 
