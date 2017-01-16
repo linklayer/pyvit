@@ -128,7 +128,7 @@ class IsotpInterface:
             try:
                 rx_frame = self._recv_queue.get(timeout=timeout)
             except Empty:
-                raise Exception("timeout receiving ISOTP data")
+                return None
 
             if rx_frame.arb_id == self.rx_arb_id:
                 if self.debug:
@@ -138,7 +138,7 @@ class IsotpInterface:
             # check timeout, since we may be receiving messages that do not
             # have the required arb_id
             if time.time() - start > timeout:
-                raise Exception("timeout receiving ISOTP data")
+                return None
 
         return data
 
