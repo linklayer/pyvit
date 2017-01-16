@@ -1,0 +1,34 @@
+{
+  "messages": [
+    {
+      "name": "test vector msg",
+      "id": "0x123",
+      "signals": {
+        "0": {
+          "name": "Engine RPM",
+          "bit_length": 16,
+          "factor": 1,
+          "offset": 0
+        },
+        "16": {
+          "name": "Gear",
+          "bit_length": 3
+        },
+        "19": {
+          "name": "Battery Voltage",
+          "bit_length": 5
+        },
+        "24": {
+          "name": "Fractional Factor",
+          "bit_length": 8,
+          "factor": 0.1
+        },
+        "32": {
+          "name": "Negative offset",
+          "bit_length": 8,
+          "offset": -100
+        }
+      }
+    }
+  ]
+}

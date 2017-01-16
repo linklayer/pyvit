@@ -1,5 +1,5 @@
 import json
-from .. import bus
+from pyvit import bus
 
 
 class JsonDbParser():
@@ -22,7 +22,7 @@ class JsonDbParser():
                     if 'offset' in sig:
                         s.offset = int(sig['offset'])
                     if 'factor' in sig:
-                        s.factor = int(sig['factor'])
+                        s.factor = float(sig['factor'])
 
                     # add this signal to the message
                     m.add_signal(s, int(start_bit))
