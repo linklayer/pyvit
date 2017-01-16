@@ -1,7 +1,6 @@
 import unittest
 import threading
 
-from pyvit import can
 from pyvit.hw.loopback import LoopbackDev
 from pyvit.dispatch import Dispatcher
 from pyvit.proto.isotp import IsotpInterface

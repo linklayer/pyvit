@@ -1,0 +1,2 @@
+future==0.16.0
+pyserial==3.2.1

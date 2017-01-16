@@ -1,5 +1,4 @@
 from pyvit.proto.isotp import IsotpInterface
-import time
 
 
 class ObdInterface(IsotpInterface):
