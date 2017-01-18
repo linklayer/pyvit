@@ -4,8 +4,8 @@ from pyvit.proto.obdii import ObdInterface
 from pyvit.hw.cantact import CantactDev
 from pyvit.dispatch import Dispatcher
 
-if len(sys.argv) != 4 and len(sys.argv) != 6:
-    print("usage: %s CANtact_device mode PID [tx_arb_id] [rx_arb_id]" %
+if len(sys.argv) != 2 and len(sys.argv) != 4:
+    print("usage: %s CANtact_device [tx_arb_id] [rx_arb_id]" %
           sys.argv[0])
     sys.exit(1)
 
@@ -31,23 +31,7 @@ obd = ObdInterface(disp, tx_arb_id, rx_arb_id)
 obd.debug = False
 disp.start()
 
-# make request using provided mode and PID
-mode = int(sys.argv[2], 0)
-pid = int(sys.argv[3], 0)
-resp = obd.request(mode, pid)
+print("Supported PIDs (mode 1):", obd.get_supported_pids(1))
+print("Supported PIDs (mode 9):", obd.get_supported_pids(9))
+
 disp.stop()
-
-if resp is None:
-    print("No data received")
-    sys.exit(1)
-
-print("OBD response for Mode %d, PID 0x%X: %s" % (mode, pid, resp))
-
-# print as hex and ASCII
-asc_str = ""
-hex_str = ""
-for c in resp:
-    asc_str += chr(c)
-    hex_str += "%02X " % c
-print("Hex: %s" % hex_str)
-print("ASCII: %s\n" % asc_str)
