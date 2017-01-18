@@ -27,7 +27,7 @@ class IsotpTest(unittest.TestCase):
 
     def test_multi_frame_loopback(self):
         """ Test ISOTP transmission and reception of a multi-frame message """
-        payload = [0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF]*10
+        payload = [0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF]*50
 
         # we need to run this in a thread so that the flow control frame is
         # sent and received, as IsotpInterfaces block

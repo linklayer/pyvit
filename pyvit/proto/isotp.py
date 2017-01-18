@@ -112,10 +112,6 @@ class IsotpInterface:
             if self.sequence_number > 0xF:
                 self.sequence_number = 0
 
-        elif pci_type == 3:
-            # flow control
-            pass
-
         else:
             raise ValueError('invalid PCItype parameter')
 
