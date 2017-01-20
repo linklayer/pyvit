@@ -1,5 +1,6 @@
 import unittest
 import threading
+from multiprocessing import Queue
 
 from pyvit.hw.loopback import LoopbackDev
 from pyvit.dispatch import Dispatcher
@@ -10,6 +11,8 @@ class IsotpTest(unittest.TestCase):
     def setUp(self):
         self.dev = LoopbackDev()
         self.disp = Dispatcher(self.dev)
+        self.recv_queue = Queue()
+        self.disp.add_receiver(self.recv_queue)
         # set up an isotp interface that sends and receives the same arb id
         self.sender = IsotpInterface(self.disp, 0, 1)
         self.receiver = IsotpInterface(self.disp, 1, 0)
@@ -51,7 +54,7 @@ class IsotpTest(unittest.TestCase):
         payload = [0xDE, 0xAD, 0xBE, 0xEF]
         self.sender.padding_value = 0x55
         self.sender.send(payload)
-        resp = self.dev.recv()
+        resp = self.recv_queue.get()
         self.assertEqual(resp.data,
                          [0x04, 0xDE, 0xAD, 0xBE, 0xEF, 0x55, 0x55, 0x55])
 
