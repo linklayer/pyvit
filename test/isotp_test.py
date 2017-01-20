@@ -42,8 +42,18 @@ class IsotpTest(unittest.TestCase):
         self.assertEqual(payload, resp)
 
     def test_tx_too_long(self):
+        """ Ensure transmission of data that is too long raises exception """
         with self.assertRaises(ValueError):
             self.sender.send([0xFF]*4096)
+
+    def test_padding(self):
+        """ Test padding of frames sent using ISOTP """
+        payload = [0xDE, 0xAD, 0xBE, 0xEF]
+        self.sender.padding_value = 0x55
+        self.sender.send(payload)
+        resp = self.dev.recv()
+        self.assertEqual(resp.data,
+                         [0x04, 0xDE, 0xAD, 0xBE, 0xEF, 0x55, 0x55, 0x55])
 
 if __name__ == '__main__':
     unittest.main()

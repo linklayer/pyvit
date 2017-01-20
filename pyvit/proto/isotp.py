@@ -8,13 +8,18 @@ from .. import can
 class IsotpInterface:
     debug = False
 
-    def __init__(self, dispatcher, tx_arb_id, rx_arb_id):
+    def __init__(self, dispatcher, tx_arb_id, rx_arb_id, padding=0):
         self._dispatcher = dispatcher
         self.tx_arb_id = tx_arb_id
         self.rx_arb_id = rx_arb_id
+        self.padding_value = padding
         self._recv_queue = Queue()
 
         self._dispatcher.add_receiver(self._recv_queue)
+
+    def _pad_data(self, data):
+        # pad data to 8 bytes
+        return data + ([self.padding_value] * (8 - len(data)))
 
     def _start_msg(self, arb_id=0):
         # initialize reading of a message
@@ -146,8 +151,8 @@ class IsotpInterface:
 
             sf = can.Frame(self.tx_arb_id)
 
-            # first byte is data length
-            sf.data = [len(data)] + data
+            # first byte is data length, remainder is data
+            sf.data = self._pad_data([len(data)] + data)
 
             if self.debug:
                 print(sf)
@@ -167,7 +172,7 @@ class IsotpInterface:
             # first 6 bytes of data
             frame_data = frame_data + data[0:6]
 
-            ff.data = frame_data
+            ff.data = self._pad_data(frame_data)
             if self.debug:
                 print(ff)
             self._dispatcher.send(ff)
@@ -192,9 +197,10 @@ class IsotpInterface:
                 frame_data.append(0x20 + sequence_number)
                 frame_data = (frame_data +
                               data[bytes_sent:bytes_sent+data_bytes_in_msg])
-                cf.data = frame_data
+                cf.data = self._pad_data(frame_data)
+                
                 if self.debug:
-                    print(ff)
+                    print(cf)
                 self._dispatcher.send(cf)
 
                 sequence_number = sequence_number + 1
