@@ -20,26 +20,22 @@ class Frame(object):
         arb_id (int): Arbitration identifier of the Frame
         data (list of int): CAN data bytes
         frame_type (int): type of CAN frame
-        is_extended_id (bool): is this frame an extended identifier frame?
     """
 
     def __init__(self, arb_id, data=None, frame_type=FrameType.DataFrame,
-                 is_extended_id=False, interface=None, timestamp=None):
+                 interface=None, timestamp=None):
         """ Initializer of Frame
         Args:
             arb_id (int): identifier of CAN frame
             data (list, optional): data of CAN frame, defaults to empty list
             frame_type (int, optional): type of frame, defaults to
                                         FrameType.DataFrame
-            is_extended_id (bool, optional): is the frame an extended id frame?
-                                             defaults to False
             interface (string, optional): name of the interface the frame is on
                                           defaults to None
             ts (float, optional): time frame was received at
                                   defaults to None
         """
 
-        self.is_extended_id = is_extended_id
         self.arb_id = arb_id
         if data:
             self.data = data
@@ -57,19 +53,21 @@ class Frame(object):
     def arb_id(self, value):
         # ensure value is an integer
         assert isinstance(value, int), 'arbitration id must be an integer'
-        # ensure standard id is in range
-        if value >= 0 and value <= 0x7FF:
+        # ensure id is in range
+        if value >= 0 and value <= 0x1FFFFFFF:
             self._arb_id = value
-        # otherwise, check if frame is extended
-        elif self.is_extended_id and value > 0x7FF and value <= 0x1FFFFFFF:
-            self._arb_id = value
-        # otherwise, id is not valid
         else:
+            # otherwise, id is not valid
             raise ValueError('Arbitration ID out of range')
 
     @property
     def data(self):
         return self._data
+
+    @property
+    def is_extended_id(self):
+        # standard IDs are 11 bits, anything longer must be extended
+        return (self.arb_id > 0x7FF)
 
     @data.setter
     def data(self, value):
