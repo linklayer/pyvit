@@ -4,51 +4,65 @@ import unittest
 
 class CanTest(unittest.TestCase):
     def setUp(self):
-        self.frame = can.Frame(0)
+        pass
 
     def test_arb_id(self):
         """ Test CAN frame arbitration ID validation """
 
+        std_frame = can.Frame(0)
+        ext_frame = can.Frame(0, extended=True)
+
         # test non-integer fails
         with self.assertRaises(AssertionError):
-            self.frame.arb_id = 'boo!'
+            std_frame.arb_id = 'boo!'
 
         # test negative id fails
         with self.assertRaises(ValueError):
-            self.frame.arb_id = -1
+            std_frame.arb_id = -1
+
+        # test non extended throws error when ID is too large
+        with self.assertRaises(ValueError):
+            std_frame.arb_id = 0x1234
 
         # test id out of range
+        ext_frame = can.Frame(0, extended=True)
         with self.assertRaises(ValueError):
-            self.frame.arb_id = 0x2FFFFFFF
+            ext_frame.arb_id = 0x2FFFFFFF
 
         # test id in range
-        self.frame.arb_id = 0x1FFFFFFF
-        self.frame.arb_id = 0x0
+        ext_frame.arb_id = 0x1FFFFFFF
+        ext_frame.arb_id = 0x0
+        std_frame.arb_id = 0x7FF
+        std_frame.arb_id = 0x0
 
     def test_data(self):
         """ Test CAN frame data validation """
 
+        frame = can.Frame(0)
+
         # test too many bytes causes error
         with self.assertRaises(AssertionError):
-            self.frame.data = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+            frame.data = [1, 2, 3, 4, 5, 6, 7, 8, 9]
         # test wrong datatype causes error
         with self.assertRaises(AssertionError):
-            self.frame.data = 4
+            frame.data = 4
         # test out of range byte causes error
         with self.assertRaises(AssertionError):
-            self.frame.data = [1, 2, 3, 4, 5, 6, 7, 0xFFFF]
+            frame.data = [1, 2, 3, 4, 5, 6, 7, 0xFFFF]
 
     def test_frame_type(self):
         """ Test CAN frame type validation """
 
+        frame = can.Frame(0)
+
         # test invalid frame type causes error
         with self.assertRaises(AssertionError):
-            self.frame.frame_type = 5
+            frame.frame_type = 5
         # test valid frame types
-        self.frame.frame_type = can.FrameType.DataFrame
-        self.frame.frame_type = can.FrameType.RemoteFrame
-        self.frame.frame_type = can.FrameType.ErrorFrame
-        self.frame.frame_type = can.FrameType.OverloadFrame
+        frame.frame_type = can.FrameType.DataFrame
+        frame.frame_type = can.FrameType.RemoteFrame
+        frame.frame_type = can.FrameType.ErrorFrame
+        frame.frame_type = can.FrameType.OverloadFrame
 
     def test_init(self):
         """ Test CAN frame initialization """
@@ -59,7 +73,7 @@ class CanTest(unittest.TestCase):
 
     def test_extended(self):
         """ Test extended arbitration IDs """
-        frame = can.Frame(0x1234)
+        frame = can.Frame(0x1234, extended=True)
         self.assertEqual(frame.arb_id, 0x1234)
         self.assertTrue(frame.is_extended_id)
 

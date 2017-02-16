@@ -23,7 +23,7 @@ class Frame(object):
     """
 
     def __init__(self, arb_id, data=None, frame_type=FrameType.DataFrame,
-                 interface=None, timestamp=None):
+                 interface=None, timestamp=None, extended=False):
         """ Initializer of Frame
         Args:
             arb_id (int): identifier of CAN frame
@@ -36,14 +36,15 @@ class Frame(object):
                                   defaults to None
         """
 
+        self.frame_type = frame_type
+        self.interface = interface
+        self.timestamp = timestamp
+        self.is_extended_id = extended
         self.arb_id = arb_id
         if data:
             self.data = data
         else:
             self.data = []
-        self.frame_type = frame_type
-        self.interface = interface
-        self.timestamp = timestamp
 
     @property
     def arb_id(self):
@@ -54,7 +55,9 @@ class Frame(object):
         # ensure value is an integer
         assert isinstance(value, int), 'arbitration id must be an integer'
         # ensure id is in range
-        if value >= 0 and value <= 0x1FFFFFFF:
+        if not self.is_extended_id and value >= 0 and value <= 0x7FF:
+            self._arb_id = value
+        elif self.is_extended_id and value >= 0 and value <= 0x1FFFFFFF:
             self._arb_id = value
         else:
             # otherwise, id is not valid
@@ -63,11 +66,6 @@ class Frame(object):
     @property
     def data(self):
         return self._data
-
-    @property
-    def is_extended_id(self):
-        # standard IDs are 11 bits, anything longer must be extended
-        return (self.arb_id > 0x7FF)
 
     @data.setter
     def data(self, value):
