@@ -93,9 +93,9 @@ class IsotpInterface:
             self.sequence_number = self.sequence_number + 1
 
             # send a flow control frame
-            # TODO: these block size and ST_min should be customizable
-            fc = can.Frame(self.tx_arb_id, data=[0x30, 0, 0])
+            fc = can.Frame(self.tx_arb_id, data=[0x30, self.bs, self.stmin])
             self._dispatcher.send(fc)
+            self.bs_counter = self.bs
 
         elif pci_type == 2:
             # consecutive frame
@@ -128,14 +128,28 @@ class IsotpInterface:
             if self.sequence_number > 0xF:
                 self.sequence_number = 0
 
+            if self.bs_counter > 0:
+                self.bs_counter -= 1
+                if self.bs_counter == 0:
+                    #Has to send flow control
+                    self.bs_counter = self.bs
+                    fc = can.Frame(self.tx_arb_id, data=[0x30, self.bs, self.stmin])
+                    self._dispatcher.send(fc)
+
         else:
             raise ValueError('invalid PCItype parameter')
 
-    def recv(self, timeout=1):
+    def recv(self, timeout=1,bs=0,stmin=0):
         data = None
         start = time.time()
 
         self._set_filter()
+
+        self.bs=bs
+        if ( not(stmin <= 0x7F)
+                and not(stmin >= 0xF1 and stmin<=0xF9)):
+           raise ValueError("stmin must be beween 0x00 - 0x7F or 0xF1 - 0XF9")
+        self.stmin=stmin
 
         while data is None:
             # attempt to get data, returning None if we timeout
