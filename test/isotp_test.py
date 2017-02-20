@@ -44,6 +44,23 @@ class IsotpTest(unittest.TestCase):
         tx_thread.join()
         self.assertEqual(payload, resp)
 
+    def test_multi_frame_loopback_with_bs(self):
+        """ Test ISOTP transmission and reception of a multi-frame message
+        with a defined blocksize """
+        payload = [0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF]*50
+
+        # we need to run this in a thread so that the flow control frame is
+        # sent and received, as IsotpInterfaces block
+        tx_thread = threading.Thread(target=self.sender.send, args=(payload, ))
+        tx_thread.start()
+
+        # we'll receive data in this thread
+        resp = self.receiver.recv(bs=10, st_min=0)
+
+        # wait for the transmitting thread to finish, then verify the result
+        tx_thread.join()
+        self.assertEqual(payload, resp)
+
     def test_tx_too_long(self):
         """ Ensure transmission of data that is too long raises exception """
         with self.assertRaises(ValueError):
