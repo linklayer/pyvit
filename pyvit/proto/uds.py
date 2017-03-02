@@ -110,13 +110,15 @@ class GenericResponse(dict):
         is not received, a timeout is raised. If an negative response was
         received an approproate exception is raised """
 
-        self.SID = sid
-
         if data is None:
             raise TimeoutException("No data received")
 
-        if data[0] != self.SID + 0x40:
+        if data[0] == 0x7F:
             raise NegativeResponseException(data)
+        elif data[0] != sid + 0x40:
+            raise ValueError('Invalid SID for service'
+                             '(got 0x%X, expected 0x%X)' %
+                             (data[0] + 0x40, sid + 0x40))
 
 
 class DiagnosticSessionControl:
@@ -168,6 +170,16 @@ class ECUReset:
         # 0x7F: ISOASAEReserved
         })
 
+    class Response(GenericResponse):
+        def __init__(self, data):
+            super().__init__(ECUReset.SID, data)
+            self['resetType'] = data[1]
+
+            # powerDownTime only present for enableRapidPowerShutDown
+            if (self['resetType'] ==
+                    ECUReset.ResetType.enableRapidPowerShutDown):
+                self['powerDownTime'] = data[2]
+
     def __init__(self, reset_type):
         self.reset_type = reset_type
 
@@ -175,65 +187,266 @@ class ECUReset:
         return [self.SID, self.reset_type]
 
     def decode(self, data):
-        # TODO
-        return None
+        return self.Response(data)
 
 
 class SecurityAccess:
     """ SecurityAccess service """
     SID = 0x27
 
-    def __init__(self):
-        raise NotImplementedError("Service not implemented.")
+    def __init__(self, security_access_type, security_key=[]):
+        self.security_access_type = security_access_type
+        self.security_key = security_key
+
+    class Response(GenericResponse):
+        def __init__(self, data):
+            super().__init__(SecurityAccess.SID, data)
+            self['securityAccessType'] = data[1]
+
+            # securitySeed is only present for seed requests, which are odd
+            # values of securityAccessType
+            if self['securityAccessType'] % 2 == 1:
+                self['securitySeed'] = data[2:]
+
+    def encode(self):
+        return [self.SID, self.security_access_type] + self.security_key
+
+    def decode(self, data):
+        return self.Response(data)
 
 
 class CommunicationControl:
     """ CommunicationControl service """
     SID = 0x28
 
-    def __init__(self):
-        raise NotImplementedError("Service not implemented.")
+    ControlType = UDSParameter('ControlType', {
+        'enableRxAndTx': 0x00,
+        'enableRxAndDisableTx': 0x01,
+        'disableRxandEnableTx': 0x02,
+        'disableRxAndTx': 0x03,
+        # 0x06 - 0x3F: ISOSAEReserved
+        # 0x40 - 0x5F: vehicleManufacturerSpecific
+        # 0x60 - 0x7E: vehicleManufacturerSpecific
+        # 0x7F: ISOASAEReserved
+        })
+
+    CommunicationType = UDSParameter('CommunicationType', {
+        # Bit encoded parameter, B.1 of ISO14229
+        # bits 0-1:
+        # 0b00: ISOSAEReserved
+        # 0b01: normalCommunicationMessages
+        # 0b10: networkManagementCommunicationMessages
+        # 0b11: networkManagementCommunicationMessages and
+        #       normalCommunicationMessages
+        # bits 2-3: ISOSAEReserved
+        'normalCommunicationMessages': 0b01,
+        'networkManagementCommunicationMessages': 0b10,
+        })
+
+    class Response(GenericResponse):
+        def __init__(self, data):
+            super().__init__(CommunicationControl.SID, data)
+            self['controlType'] = data[1]
+
+    def __init__(self, control_type, communication_type, network_number=0):
+        self.control_type = control_type
+        # communicationType lower nybble is the type of communication.
+        # upper nybble is which network to disable/enable, where 0x0 specifies
+        # all networks, 0xF specifies network the message was received on, and
+        # 0x01-0x0E specify a network by network number
+        self.communication_type = communication_type + (network_number << 4)
+
+    def encode(self):
+        return [self.SID, self.control_type, self.communication_type]
+
+    def decode(self, data):
+        return self.Response(data)
 
 
 class TesterPresent:
     """ TesterPresent service """
     SID = 0x3E
 
+    class Response(GenericResponse):
+        def __init__(self, data):
+            super().__init__(TesterPresent.SID, data)
+
     def __init__(self):
-        raise NotImplementedError("Service not implemented.")
+        pass
+
+    def encode(self):
+        return [self.SID, 0]
+
+    def decode(self, data):
+        return self.Response(data)
 
 
 class AccessTimingParameter:
     """ AccessTimingParameter service """
     SID = 0x83
 
-    def __init__(self):
-        raise NotImplementedError("Service not implemented.")
+    AccessType = UDSParameter('AccessType', {
+       # 0x00: ISOASAEReserved
+       'readExtendedTimingParameterSet': 0x01,
+       'setTimingParametersToDefaultValues': 0x02,
+       'readCurrentlyActiveTimingParameters': 0x03,
+       'setTimingParametersToGivenValues': 0x04,
+        # 0x05 - 0xFF: ISOSAEReserved
+    })
+
+    class Response(GenericResponse):
+        def __init__(self, data):
+            super().__init__(AccessTimingParameter.SID, data)
+            self['timingParameterAccessType'] = data[1]
+            if (self['timingParameterAccessType'] ==
+                AccessTimingParameter.AccessType
+                    .readExtendedTimingParameterSet or
+                self['timingParameterAccessType'] ==
+                AccessTimingParameter.AccessType
+                    .readCurrentlyActiveTimingParameters):
+                self['TimingParameterResponseRecord'] = data[2:]
+
+    def __init__(self, access_type, request_record=[]):
+        self.access_type = access_type
+        self.request_record = request_record
+
+    def encode(self):
+        result = [self.SID, self.access_type]
+
+        # TimingParameterRequestRecord is present only when
+        # timingParameterAccessType = setTimingParametersToGivenValues
+        if (self.access_type ==
+            AccessTimingParameter.AccessType
+                .setTimingParametersToGivenValues):
+            result += self.request_record
+
+        return result
+
+    def decode(self, data):
+        return self.Response(data)
 
 
 class SecuredDataTransmission:
     """ SecuredDataTransmission service """
     SID = 0x84
 
-    def __init__(self):
-        raise NotImplementedError("Service not implemented.")
+    class Response(GenericResponse):
+        def __init__(self, data):
+            super().__init__(SecuredDataTransmission.SID, data)
+            self['securityDataResponseRecord'] = data[1:]
+
+    def __init__(self, data_record):
+        self.data_record = data_record
+ 
+    def encode(self):
+        return [self.SID] + self.data_record
+
+    def decode(self, data):
+        return self.Response(data)
 
 
 class ControlDTCSetting:
     """ ControlDTCSetting service """
     SID = 0x85
 
-    def __init__(self):
-        raise NotImplementedError("Service not implemented.")
+    DTCSettingType = UDSParameter('DTCSettingType', {
+        # 0x00: ISOASAEReserved
+        'on': 0x01,
+        'off': 0x02,
+        # 0x03 - 0x3F: ISOSAEReserved
+        # 0x40 - 0x5F: vehicleManufacturerSpecific
+        # 0x60 - 0x7E: vehicleManufacturerSpecific
+        # 0x05 - 0xFF: ISOSAEReserved
+    })
 
+    class Response(GenericResponse):
+        def __init__(self, data):
+            super().__init__(ControlDTCSetting.SID, data)
+            self['DTCSettingType'] = data[1]
+
+    def __init__(self, dtc_setting_type, data_record=[]):
+        self.dtc_setting_type = dtc_setting_type
+        self.data_record = data_record
+
+    def encode(self):
+        return [self.SID, self.dtc_setting_type] + self.data_record
+
+    def decode(self, data):
+        return self.Response(data)
 
 class ResponseOnEvent:
     """ ResponseOnEvent service """
     SID = 0x86
 
-    def __init__(self):
-        raise NotImplementedError("Service not implemented.")
+    EventType = UDSParameter('EventType', {
+        'stopResponseOnEvent': 0x00,
+        'onDTCStatusChange': 0x01,
+        'onTimerInterrupt': 0x02,
+        'onChangeOfDataIdentifier': 0x03,
+        'reportActivatedEvents': 0x04,
+        'startResponseOnEvent': 0x05,
+        'clearResponseOnEvent': 0x06,
+        'onComparisonOfValues': 0x07,
+        # 0x08 - 0x1F: ISOSAEReserved
+        # 0x20 - 0x2F: vehicleManufacturerSpecific
+        # 0x30 - 0x3E: vehicleManufacturerSpecific
+        # 0x3F: ISOSAEReserved
+        # bit 6 is store/doNotStore flag
+    })
 
+    class Response(GenericResponse):
+        def __init__(self, data):
+            super().__init__(ResponseOnEvent.SID, data)
+            # TODO
+            self['data'] = data
+
+    def __init__(self, event_type, store_event, event_window_time=0x02,
+                 event_type_record=[], service_to_respond_to_record=[]):
+        # validate eventTypeRecord length for each eventType
+        if (event_type == self.EventType.stopResponseOnEvent and
+                len(event_type_record) != 0):
+            raise ValueError("Invalid eventTypeRecord length for eventType")
+        elif (event_type == self.EventType.onDTCStatusChange and
+                len(event_type_record) != 1):
+            raise ValueError("Invalid eventTypeRecord length for eventType")
+        elif (event_type == self.EventType.onTimerInterrupt and
+                len(event_type_record) != 1):
+            raise ValueError("Invalid eventTypeRecord length for eventType")
+        elif (event_type == self.EventType.onChangeOfDataIdentifier and
+                len(event_type_record) != 2):
+            raise ValueError("Invalid eventTypeRecord length for eventType")
+        elif (event_type == self.EventType.reportActivatedEvents and
+                len(event_type_record) != 0):
+            raise ValueError("Invalid eventTypeRecord length for eventType")
+        elif (event_type == self.EventType.startResponseOnEvent and
+                len(event_type_record) != 0):
+            raise ValueError("Invalid eventTypeRecord length for eventType")
+        elif (event_type == self.EventType.clearResponseOnEvent and
+                len(event_type_record) != 0):
+            raise ValueError("Invalid eventTypeRecord length for eventType")
+        elif (event_type == self.EventType.onComparisonOfValues and
+                len(event_type_record) != 10):
+            raise ValueError("Invalid eventTypeRecord length for eventType")
+
+        self.event_type = event_type
+        self.store_event = store_event
+        # event_window_type defaults to 0x02, specifying infinite time
+        self.event_window_time = event_window_time
+        self.event_type_record = event_type_record
+        self.service_to_respond_to_record = service_to_respond_to_record 
+
+    def encode(self):
+        event_type = self.event_type
+
+        # bit 6 of event_type is 1 if event should be stored, 0 if not
+        if self.store_event:
+            event_type += 0x40
+
+        return ([self.SID, event_type, self.event_window_time] + 
+                self.event_type_record + self.service_to_respond_to_record)
+
+    def decode(self, data):
+        return self.Response(data)
 
 class LinkControl:
     """ ResponseOnEvent service """
