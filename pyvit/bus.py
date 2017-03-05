@@ -74,8 +74,13 @@ class Message(object):
 
             # apply the mask, then downshift
             value = (frame_value & mask) >> start_bit
-            # pass the maksed value to the signal
+            # pass the maskd value to the signal
             signal.parse_value(value)
+			
+            # check if isSigned then apply two complement			
+            isneg = (value&2**(signal.bit_length-1))>0
+            if signal.isSigned & isneg:
+                value = value-(1<<signal.bit_length)
 
             result_signals.append(signal)
 
@@ -95,6 +100,7 @@ class Signal:
         self.factor = factor
         self.offset = offset
         self.value = 0
+        self.isSigned = True
 
     def parse_value(self, value):
         self.value = value * self.factor + self.offset
