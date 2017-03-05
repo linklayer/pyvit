@@ -74,9 +74,9 @@ class Message(object):
 
             # apply the mask, then downshift
             value = (frame_value & mask) >> start_bit
-            # pass the maskd value to the signal
+            # pass the masked value to the signal
             signal.parse_value(value)
-			
+
             # check if isSigned then apply two complement			
             isneg = (value&2**(signal.bit_length-1))>0
             if signal.isSigned & isneg:
