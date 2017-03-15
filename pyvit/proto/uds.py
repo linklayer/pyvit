@@ -1,7 +1,34 @@
 import operator
 
+from math import log
+
 from pyvit.proto.isotp import IsotpInterface
 
+
+def _byte_size(value):
+    # return the number of bytes needed to represent a value
+    if value == 0:
+        return 1
+    else:
+        return int(log(value, 256)) + 1
+
+def _to_bytes(value):
+    # convert value to byte array, MSB first
+    res = []
+    while value > 0:
+        res = [value & 0xFF] + res
+        value = value >> 8
+
+    return res
+
+def _from_bytes(bs):
+    # convert byte array to value, MSB first
+    res = 0
+    for b in bs:
+        res = res << 8
+        res += b
+
+    return res
 
 class UDSParameter:
     def __init__(self, name, data):
@@ -449,43 +476,191 @@ class ResponseOnEvent:
         return self.Response(data)
 
 class LinkControl:
-    """ ResponseOnEvent service """
+    """ LinkControl service """
     SID = 0x87
 
-    def __init__(self):
-        raise NotImplementedError("Service not implemented.")
+    LinkControlType = UDSParameter('LinkControlType', {
+        # 0x0: ISOSAEReserved
+        'verifyBaudrateTransitionWithFixedBaudrate': 0x01,
+        'verifyBaudrateTransitionWithSpecificBaudrate': 0x02,
+        'transitionBaudrate': 0x03,
+        # 0x04 - 0x3F: ISOSAEReserved
+        # 0x40 - 0x5F: vehicleManufacturerSpecific
+        # 0x60 - 0x7E: vehicleManufacturerSpecific
+        # 0x7F: ISOSAEReserved
+    })
 
+    BaudrateIdentifier = UDSParameter('BaudrateIdentifier', {
+        # B.3 of ISO14229
+        # 0x0: ISOSAEReserved
+        'PC9600Baud': 0x01,
+        'PC19200Baud': 0x02,
+        'PC38400Baud': 0x03,
+        'PC57600Baud': 0x04,
+        'PC115200Baud': 0x05,
+        # 0x06 - 0x0F: ISOSAEReserved
+        'CAN125000Baud': 0x10,
+        'CAN250000Baud': 0x11,
+        'CAN500000Baud': 0x12,
+        'CAN1000000Baud': 0x13,
+        # 0x14 - 0xFF: ISOSAEReserved
+    })
+
+    class Response(GenericResponse):
+        def __init__(self, data):
+            super().__init__(LinkControl.SID, data)
+            self['linkControlType'] = data[1]
+
+    def __init__(self, link_control_type, baudrate=None):
+        self.link_control_type = link_control_type
+
+        # baudrate can be a bit/s value (FixedBaudrate)
+        # or a baudrateIdentifier (SpecificBaudrate)
+        # validate and convert to an array of bytes
+        if (link_control_type ==
+                self.LinkControlType.verifyBaudrateTransitionWithFixedBaudrate):
+            if baudrate is None or baudrate > 0xFF:
+                raise ValueError('Invalid fixed baudrate')
+            else:
+                self.baudrate = [baudrate]
+        elif (link_control_type ==
+              self.LinkControlType.
+                verifyBaudrateTransitionWithSpecificBaudrate):
+            if baudrate is None or baudrate > 0xFFFFFF:
+                raise ValueError('Invalid specific baudrate')
+            else:
+                self.baudrate = [baudrate >> 16,
+                                 (baudrate >> 8) & 0xFF,
+                                 baudrate & 0xFF]
+        else:
+            self.baudrate = baudrate
+
+    def encode(self):
+        if self.baudrate is None:
+            return [self.SID, self.link_control_type]
+        else:
+            return [self.SID, self.link_control_type] + self.baudrate
+
+    def decode(self, data):
+        return self.Response(data)
 
 class ReadDataByIdentifier:
     """ ReadDataByIdentifier service """
+    # NB: this currently only supports reading one DID at a time
     SID = 0x22
 
-    def __init__(self):
-        raise NotImplementedError("Service not implemented.")
+    class Response(GenericResponse):
+        def __init__(self, data):
+            super().__init__(ReadDataByIdentifier.SID, data)
+            self['dataIdentifier'] = (data[1] << 8) + data[2]
+            self['dataRecord'] = data[3:]
+
+    def __init__(self, data_identifier):
+        if data_identifier < 0 or data_identifier > 0xFFFF:
+            raise ValueError('Invalid dataIdentifier, must be > 0 and < 0xFF')
+        self.data_identifier = data_identifier
+
+    def encode(self):
+        return [self.SID,
+                (self.data_identifier >> 8),
+                self.data_identifier & 0xFF]
+
+    def decode(self, data):
+        return self.Response(data)
 
 
 class ReadMemoryByAddress:
     """ ReadMemoryByAddress service """
     SID = 0x23
 
-    def __init__(self):
-        raise NotImplementedError("Service not implemented.")
+    class Response(GenericResponse):
+        def __init__(self, data):
+            super().__init__(ReadMemoryByAddress.SID, data)
+            self['dataRecord'] = data[1:]
+
+    def __init__(self, memory_address, memory_size):
+        self.memory_address = memory_address
+        self.memory_size = memory_size
+
+    def encode(self):
+        # addressAndLengthFormatIdentifier specifies length of address and size
+        # uppper nybble is byte length of size
+        # lower nybble is byte length of address
+        format_identifier = ((_byte_size(self.memory_size) << 4) +
+                             _byte_size(self.memory_address))
+
+        return ([self.SID, format_identifier] +
+                _to_bytes(self.memory_address) +
+                _to_bytes(self.memory_size))
+
+    def decode(self, data):
+        return self.Response(data)
 
 
 class ReadScalingDataByIdentifier:
     """ ReadScalingDataByIdentifier service """
     SID = 0x24
 
-    def __init__(self):
-        raise NotImplementedError("Service not implemented.")
+    class Response(GenericResponse):
+        def __init__(self, data):
+            super().__init__(ReadScalingDataByIdentifier.SID, data)
+            self['dataIdentifier'] = (data[1] << 8) + data[2]
+            # TODO, decode more specifically
+            self['scalingData'] = data[3:]
+
+    def __init__(self, data_identifier):
+        if data_identifier < 0 or data_identifier > 0xFFFF:
+            raise ValueError('Invalid dataIdentifier, must be > 0 and < 0xFF')
+        self.data_identifier = data_identifier
+
+    def encode(self):
+        return [self.SID,
+                (self.data_identifier >> 8),
+                self.data_identifier & 0xFF]
+
+    def decode(self, data):
+        return self.Response(data)
 
 
 class ReadDataByPeriodicIdentifier:
     """ ReadDataByPeriodicIdentifier service """
     SID = 0x2A
 
-    def __init__(self):
-        raise NotImplementedError("Service not implemented.")
+    TransmissionMode = UDSParameter('TransmissionMode', {
+        # 0x00: ISOASAEReserved
+        'sendAtSlowRate': 0x01,
+        'sendAtMediumRate': 0x02,
+        'sendAtFastRate': 0x03,
+        'stopSending': 0x04,
+        # 0x05 - 0xFF: ISOSAEReserved
+        })
+
+
+    class Response(GenericResponse):
+        def __init__(self, data):
+            super().__init__(ReadDataByPeriodicIdentifier.SID, data)
+            if len(data) > 1:
+                # this response has a periodic response, in one of two formats
+                # we can't know what format the server uses, so return data
+                # unformatted
+                self['periodicReponse'] = data
+
+    def __init__(self, transmission_mode, *data_identifiers):
+        if transmission_mode < 1 or transmission_mode > 4:
+            raise ValueError('Invalid transmission mode')
+        if (transmission_mode != self.TransmissionMode.stopSending and
+                len(data_identifiers) == 0):
+            raise ValueError('At least one dataIdentifier must be provided '
+                             'for this transmission mode')
+        self.transmission_mode = transmission_mode
+        self.data_identifiers = list(data_identifiers)
+            
+
+    def encode(self):
+        return [self.SID, self.transmission_mode] + self.data_identifiers
+
+    def decode(self, data):
+        return self.Response(data)
 
 
 class DynamicallyDefineDataIdentifier:
@@ -499,25 +674,84 @@ class DynamicallyDefineDataIdentifier:
 class WriteDataByIdentifier:
     """ WriteDataByIdentifier service """
     SID = 0x2E
+    
+    class Response(GenericResponse):
+        def __init__(self, data):
+            super().__init__(WriteDataByIdentifier.SID, data)
+            self['dataIdentifier'] = (data[1] << 8) + data[2]
 
-    def __init__(self):
-        raise NotImplementedError("Service not implemented.")
+    def __init__(self, data_identifier, data):
+        if data_identifier < 0 or data_identifier > 0xFFFF:
+            raise ValueError('Invalid dataIdentifier, must be > 0 and < 0xFF')
+        self.data_identifier = data_identifier
+        self.data = data
+
+    def encode(self):
+        return ([self.SID,
+                (self.data_identifier >> 8),
+                self.data_identifier & 0xFF] +
+                self.data)
+
+    def decode(self, data):
+        return self.Response(data)
 
 
 class WriteMemoryByAddress:
     """ WriteMemoryByAddress service """
     SID = 0x3D
 
-    def __init__(self):
-        raise NotImplementedError("Service not implemented.")
+    class Response(GenericResponse):
+        def __init__(self, data):
+            super().__init__(WriteMemoryByAddress.SID, data)
+            format_identifier = data[1]
+            # get parameter lengts from format identifier
+            addr_bytes = format_identifier & 0x0F
+            size_bytes = format_identifier >> 4
+            
+            self['memoryAddress'] = _from_bytes(data[2 : 2 + addr_bytes])
+            self['memorySize'] = _from_bytes(data[2 + addr_bytes :
+                                      2 + addr_bytes + size_bytes])
+
+    def __init__(self, memory_address, data):
+        self.memory_address = memory_address
+        self.data = data
+
+    def encode(self):
+        memory_size = len(self.data)
+        # addressAndLengthFormatIdentifier specifies length of address and size
+        # uppper nybble is byte length of size
+        # lower nybble is byte length of address
+        format_identifier = ((_byte_size(memory_size) << 4) +
+                             _byte_size(self.memory_address))
+
+        return ([self.SID, format_identifier] +
+                _to_bytes(self.memory_address) +
+                _to_bytes(memory_size) +
+                self.data)
+
+    def decode(self, data):
+        return self.Response(data)
 
 
 class ClearDiagnosticInformation:
     """ ClearDiagnosticInformation service """
     SID = 0x14
 
-    def __init__(self):
-        raise NotImplementedError("Service not implemented.")
+    class Response(GenericResponse):
+        def __init__(self, data):
+            super().__init__(ClearDiagnosticInformation.SID, data)
+
+    def __init__(self, group_of_dtc):
+        self.group_of_dtc = group_of_dtc
+
+    def encode(self):
+        return [self.SID,
+                self.group_of_dtc >> 16,
+                (self.group_of_dtc >> 8) & 0xFF,
+                self.group_of_dtc & 0xFF]
+
+    def decode(self, data):
+        return self.Response(data)
 
 
 class ReadDTCInformation:
@@ -532,9 +766,29 @@ class InputOutputControlByIdentifier:
     """ InputOutputControlByIdentifier service """
     SID = 0x2F
 
-    def __init__(self):
-        raise NotImplementedError("Service not implemented.")
+    class Response(GenericResponse):
+        def __init__(self, data):
+            super().__init__(ClearDiagnosticInformation.SID, data)
 
+            self['dataIdentifier'] = _from_bytes(data[1:3])
+            self['controlStatusRecord'] = data[3:]
+
+    def __init__(self, data_identifier, control_option_record,
+                 control_enable_mask_record=[]):
+        if data_identifier < 0 or data_identifier > 0xFFFF:
+            raise ValueError('Invalid dataIdentifier, must be > 0 and < 0xFF')
+        self.data_identifier = data_identifier
+        self.control_option_record = control_option_record
+        self.control_enable_mask_record = control_enable_mask_record
+
+    def encode(self):
+        return ([self.SID, self.data_identifier >> 8,
+                self.data_identifier & 0xFF] +
+                self.control_option_record +
+                self.control_enable_mask_record)
+    
+    def decode(self, data):
+        return self.Response(data)
 
 class RoutineControl:
     """ RoutineControl service """

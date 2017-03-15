@@ -158,6 +158,142 @@ class CanTest(unittest.TestCase):
         resp = service.decode([0x40 + uds.ResponseOnEvent.SID, 2])
         print(resp)
 
+    def test_link_control(self):
+        print('\n\nLinkControl')
+        service = uds.LinkControl(
+            uds.LinkControl.LinkControlType.transitionBaudrate)
+        req = service.encode()
+        print(req)
+        valid = [uds.LinkControl.SID, 3]
+        self.assertEqual(req, valid)
+
+        resp = service.decode([0x40 + uds.LinkControl.SID, 3])
+        print(resp)
+        self.assertEqual(resp['linkControlType'], 3)
+ 
+        service = uds.LinkControl(
+            uds.LinkControl.LinkControlType.
+            verifyBaudrateTransitionWithFixedBaudrate, 0xFF)
+        req = service.encode()
+        print(req)
+        valid = [uds.LinkControl.SID, 1, 0xFF]
+        self.assertEqual(req, valid)
+
+        resp = service.decode([0x40 + uds.LinkControl.SID, 2])
+        print(resp)
+        self.assertEqual(resp['linkControlType'], 2)
+ 
+    def test_rdbi(self):
+        print('\n\nRDBI')
+        service = uds.ReadDataByIdentifier(0x1234)
+        req = service.encode()
+        print(req)
+        valid = [uds.ReadDataByIdentifier.SID, 0x12, 0x34]
+        self.assertEqual(req, valid)
+
+        resp = service.decode([0x40 + uds.ReadDataByIdentifier.SID, 0x12, 0x34,
+                               1, 2, 3])
+        print(resp)
+        self.assertEqual(resp['dataIdentifier'], 0x1234)
+        self.assertEqual(resp['dataRecord'], [1, 2, 3])
+ 
+    def test_rmba(self):
+        print('\n\nRMBA')
+        service = uds.ReadMemoryByAddress(0x12345678, 0x10)
+        req = service.encode()
+        print(req)
+        valid = [uds.ReadMemoryByAddress.SID, 0x14, 0x12, 0x34, 0x56, 0x78,
+                 0x10]
+        self.assertEqual(req, valid)
+
+        resp = service.decode([0x40 + uds.ReadMemoryByAddress.SID, 0xAA, 0xBB,
+                               1, 2, 3])
+        print(resp)
+        self.assertEqual(resp['dataRecord'], [0xAA, 0xBB, 1, 2, 3])
+ 
+    def test_read_scaling(self):
+        print('\n\nRScalingDBI')
+        service = uds.ReadScalingDataByIdentifier(0x1234)
+        req = service.encode()
+        print(req)
+        valid = [uds.ReadScalingDataByIdentifier.SID, 0x12, 0x34]
+        self.assertEqual(req, valid)
+
+        resp = service.decode([0x40 + uds.ReadScalingDataByIdentifier.SID,
+                               0xAA, 0xBB, 1, 2, 3])
+        print(resp)
+        self.assertEqual(resp['dataIdentifier'], 0xAABB)
+        self.assertEqual(resp['scalingData'], [1, 2, 3])
+ 
+    def test_read_periodic(self):
+        print('\n\nRDBPeriodicI')
+        service = uds.ReadDataByPeriodicIdentifier(
+            uds.ReadDataByPeriodicIdentifier.TransmissionMode.sendAtSlowRate,
+            0xAA, 0xBB)
+        req = service.encode()
+        print(req)
+        valid = [uds.ReadDataByPeriodicIdentifier.SID, 0x1, 0xAA, 0xBB]
+        self.assertEqual(req, valid)
+
+        resp = service.decode([0x40 + uds.ReadDataByPeriodicIdentifier.SID])
+        print(resp)
+ 
+    def test_wdbi(self):
+        print('\n\nWDBI')
+        service = uds.WriteDataByIdentifier(0xBEEF, [1,2,3,4,5,6,7])
+        req = service.encode()
+        print(req)
+        valid = [uds.WriteDataByIdentifier.SID, 0xBE, 0xEF,
+                 1, 2, 3, 4, 5, 6, 7]
+        self.assertEqual(req, valid)
+
+        resp = service.decode([0x40 + uds.WriteDataByIdentifier.SID,
+                               0xBE, 0xEF])
+        print(resp)
+        self.assertEqual(resp['dataIdentifier'], 0xBEEF)
+
+    def test_wmba(self):
+        print('\n\nWMBA')
+        service = uds.WriteMemoryByAddress(0xBEEF, [1,2,3,4,5,6,7])
+        req = service.encode()
+        print(req)
+        valid = [uds.WriteMemoryByAddress.SID, 0x12, 0xBE, 0xEF, 7,
+                 1, 2, 3, 4, 5, 6, 7]
+        self.assertEqual(req, valid)
+
+        resp = service.decode([0x40 + uds.WriteMemoryByAddress.SID, 0x12,
+                               0xBE, 0xEF, 7])
+        print(resp)
+        self.assertEqual(resp['memoryAddress'], 0xBEEF)
+        self.assertEqual(resp['memorySize'], 7)
+
+
+    def test_clear_dtc(self):
+        print('\n\nClearDiagnosticInformation')
+        service = uds.ClearDiagnosticInformation(0xAABBCC)
+        req = service.encode()
+        print(req)
+        valid = [uds.ClearDiagnosticInformation.SID, 0xAA, 0xBB, 0xCC]
+        self.assertEqual(req, valid)
+
+        resp = service.decode([0x40 + uds.ClearDiagnosticInformation.SID])
+        print(resp)
+
+    def test_io_ctl(self):
+        print('\n\nIO Control')
+        service = uds.InputOutputControlByIdentifier(0xABBA,
+                                                     [1, 2, 3], [1, 2, 3])
+        req = service.encode()
+        print(req)
+        valid = [uds.InputOutputControlByIdentifier.SID, 0xAB, 0xBA, 1, 2, 3,
+                 1, 2, 3]
+        self.assertEqual(req, valid)
+
+        resp = service.decode([0x40 + uds.ClearDiagnosticInformation.SID,
+                               0xAB, 0xBA, 1, 2, 3])
+        self.assertEqual(resp['dataIdentifier'], 0xABBA)
+        self.assertEqual(resp['controlStatusRecord'], [1, 2, 3])
+        print(resp)
 
 
 if __name__ == '__main__':
