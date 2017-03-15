@@ -33,12 +33,12 @@ class CanTest(unittest.TestCase):
 
     def test_security_access(self):
         print('\n\nSecurityAccess')
-        service = uds.SecurityAccess(1) 
+        service = uds.SecurityAccess(1)
         req = service.encode()
         print(req)
         resp = service.decode([0x40 + uds.SecurityAccess.SID, 1, 12, 34])
         print(resp)
-        service = uds.SecurityAccess(2, [0x12, 0x34]) 
+        service = uds.SecurityAccess(2, [0x12, 0x34])
         req = service.encode()
         print(req)
         resp = service.decode([0x40 + uds.SecurityAccess.SID, 2])
@@ -50,7 +50,7 @@ class CanTest(unittest.TestCase):
             uds.CommunicationControl.ControlType.disableRxAndTx,
             uds.CommunicationControl.CommunicationType
             .normalCommunicationMessages
-        ) 
+        )
         req = service.encode()
         print(req)
         valid = [uds.CommunicationControl.SID,
@@ -73,13 +73,13 @@ class CanTest(unittest.TestCase):
 
         resp = service.decode([0x40 + uds.TesterPresent.SID, 0])
         print(resp)
-        
+
     def test_access_timing_parameter(self):
         print('\n\nAccessTimingParameter')
         at = (uds.AccessTimingParameter.AccessType
               .setTimingParametersToGivenValues)
 
-        service = uds.AccessTimingParameter(at, [1,2,3])
+        service = uds.AccessTimingParameter(at, [1, 2, 3])
         req = service.encode()
         print(req)
         valid = [uds.AccessTimingParameter.SID, at, 1, 2, 3]
@@ -90,7 +90,7 @@ class CanTest(unittest.TestCase):
         resp = service.decode([0x40 + uds.AccessTimingParameter.SID, at])
         print(resp)
         self.assertEqual(resp['timingParameterAccessType'], at)
-     
+
         at = (uds.AccessTimingParameter.AccessType
               .readCurrentlyActiveTimingParameters)
         service = uds.AccessTimingParameter(at)
@@ -102,14 +102,14 @@ class CanTest(unittest.TestCase):
         at = (uds.AccessTimingParameter.AccessType
               .readCurrentlyActiveTimingParameters)
         resp = service.decode([0x40 + uds.AccessTimingParameter.SID, at,
-                               1,2,3])
+                               1, 2, 3])
         print(resp)
-        self.assertEqual(resp['TimingParameterResponseRecord'], [1,2,3])
+        self.assertEqual(resp['TimingParameterResponseRecord'], [1, 2, 3])
         self.assertEqual(resp['timingParameterAccessType'], at)
-     
+
     def test_security_data_transmission(self):
         print('\n\nsSecuredDataTransmission')
-        service = uds.SecuredDataTransmission([1,2,3,4])
+        service = uds.SecuredDataTransmission([1, 2, 3, 4])
         req = service.encode()
         print(req)
         valid = [uds.SecuredDataTransmission.SID, 1, 2, 3, 4]
@@ -118,11 +118,12 @@ class CanTest(unittest.TestCase):
         resp = service.decode([0x40 + uds.SecuredDataTransmission.SID,
                                1, 2, 3, 4])
         print(resp)
-        self.assertEqual(resp['securityDataResponseRecord'], [1,2,3,4])
- 
+        self.assertEqual(resp['securityDataResponseRecord'], [1, 2, 3, 4])
+
     def test_control_dtc_setting(self):
         print('\n\nControlDTCSetting')
-        service = uds.ControlDTCSetting(uds.ControlDTCSetting.DTCSettingType.on)
+        service = uds.ControlDTCSetting(uds.
+                                        ControlDTCSetting.DTCSettingType.on)
         req = service.encode()
         print(req)
         valid = [uds.ControlDTCSetting.SID, 1]
@@ -131,7 +132,7 @@ class CanTest(unittest.TestCase):
         resp = service.decode([0x40 + uds.ControlDTCSetting.SID, 2])
         print(resp)
         self.assertEqual(resp['DTCSettingType'], 2)
- 
+
     def test_response_on_event(self):
         print('\n\nResponseOnEvent')
         service = uds.ResponseOnEvent(uds.ResponseOnEvent.EventType
@@ -170,7 +171,7 @@ class CanTest(unittest.TestCase):
         resp = service.decode([0x40 + uds.LinkControl.SID, 3])
         print(resp)
         self.assertEqual(resp['linkControlType'], 3)
- 
+
         service = uds.LinkControl(
             uds.LinkControl.LinkControlType.
             verifyBaudrateTransitionWithFixedBaudrate, 0xFF)
@@ -182,7 +183,7 @@ class CanTest(unittest.TestCase):
         resp = service.decode([0x40 + uds.LinkControl.SID, 2])
         print(resp)
         self.assertEqual(resp['linkControlType'], 2)
- 
+
     def test_rdbi(self):
         print('\n\nRDBI')
         service = uds.ReadDataByIdentifier(0x1234)
@@ -196,7 +197,7 @@ class CanTest(unittest.TestCase):
         print(resp)
         self.assertEqual(resp['dataIdentifier'], 0x1234)
         self.assertEqual(resp['dataRecord'], [1, 2, 3])
- 
+
     def test_rmba(self):
         print('\n\nRMBA')
         service = uds.ReadMemoryByAddress(0x12345678, 0x10)
@@ -210,7 +211,7 @@ class CanTest(unittest.TestCase):
                                1, 2, 3])
         print(resp)
         self.assertEqual(resp['dataRecord'], [0xAA, 0xBB, 1, 2, 3])
- 
+
     def test_read_scaling(self):
         print('\n\nRScalingDBI')
         service = uds.ReadScalingDataByIdentifier(0x1234)
@@ -224,7 +225,7 @@ class CanTest(unittest.TestCase):
         print(resp)
         self.assertEqual(resp['dataIdentifier'], 0xAABB)
         self.assertEqual(resp['scalingData'], [1, 2, 3])
- 
+
     def test_read_periodic(self):
         print('\n\nRDBPeriodicI')
         service = uds.ReadDataByPeriodicIdentifier(
@@ -237,10 +238,10 @@ class CanTest(unittest.TestCase):
 
         resp = service.decode([0x40 + uds.ReadDataByPeriodicIdentifier.SID])
         print(resp)
- 
+
     def test_wdbi(self):
         print('\n\nWDBI')
-        service = uds.WriteDataByIdentifier(0xBEEF, [1,2,3,4,5,6,7])
+        service = uds.WriteDataByIdentifier(0xBEEF, [1, 2, 3, 4, 5, 6, 7])
         req = service.encode()
         print(req)
         valid = [uds.WriteDataByIdentifier.SID, 0xBE, 0xEF,
@@ -254,7 +255,7 @@ class CanTest(unittest.TestCase):
 
     def test_wmba(self):
         print('\n\nWMBA')
-        service = uds.WriteMemoryByAddress(0xBEEF, [1,2,3,4,5,6,7])
+        service = uds.WriteMemoryByAddress(0xBEEF, [1, 2, 3, 4, 5, 6, 7])
         req = service.encode()
         print(req)
         valid = [uds.WriteMemoryByAddress.SID, 0x12, 0xBE, 0xEF, 7,
@@ -266,7 +267,6 @@ class CanTest(unittest.TestCase):
         print(resp)
         self.assertEqual(resp['memoryAddress'], 0xBEEF)
         self.assertEqual(resp['memorySize'], 7)
-
 
     def test_clear_dtc(self):
         print('\n\nClearDiagnosticInformation')

@@ -12,6 +12,7 @@ def _byte_size(value):
     else:
         return int(log(value, 256)) + 1
 
+
 def _to_bytes(value):
     # convert value to byte array, MSB first
     res = []
@@ -21,6 +22,7 @@ def _to_bytes(value):
 
     return res
 
+
 def _from_bytes(bs):
     # convert byte array to value, MSB first
     res = 0
@@ -29,6 +31,7 @@ def _from_bytes(bs):
         res += b
 
     return res
+
 
 class UDSParameter:
     def __init__(self, name, data):
@@ -318,7 +321,7 @@ class AccessTimingParameter:
        'setTimingParametersToDefaultValues': 0x02,
        'readCurrentlyActiveTimingParameters': 0x03,
        'setTimingParametersToGivenValues': 0x04,
-        # 0x05 - 0xFF: ISOSAEReserved
+       # 0x05 - 0xFF: ISOSAEReserved
     })
 
     class Response(GenericResponse):
@@ -364,7 +367,7 @@ class SecuredDataTransmission:
 
     def __init__(self, data_record):
         self.data_record = data_record
- 
+
     def encode(self):
         return [self.SID] + self.data_record
 
@@ -400,6 +403,7 @@ class ControlDTCSetting:
 
     def decode(self, data):
         return self.Response(data)
+
 
 class ResponseOnEvent:
     """ ResponseOnEvent service """
@@ -460,7 +464,7 @@ class ResponseOnEvent:
         # event_window_type defaults to 0x02, specifying infinite time
         self.event_window_time = event_window_time
         self.event_type_record = event_type_record
-        self.service_to_respond_to_record = service_to_respond_to_record 
+        self.service_to_respond_to_record = service_to_respond_to_record
 
     def encode(self):
         event_type = self.event_type
@@ -469,11 +473,12 @@ class ResponseOnEvent:
         if self.store_event:
             event_type += 0x40
 
-        return ([self.SID, event_type, self.event_window_time] + 
+        return ([self.SID, event_type, self.event_window_time] +
                 self.event_type_record + self.service_to_respond_to_record)
 
     def decode(self, data):
         return self.Response(data)
+
 
 class LinkControl:
     """ LinkControl service """
@@ -518,7 +523,8 @@ class LinkControl:
         # or a baudrateIdentifier (SpecificBaudrate)
         # validate and convert to an array of bytes
         if (link_control_type ==
-                self.LinkControlType.verifyBaudrateTransitionWithFixedBaudrate):
+            self.LinkControlType.
+                verifyBaudrateTransitionWithFixedBaudrate):
             if baudrate is None or baudrate > 0xFF:
                 raise ValueError('Invalid fixed baudrate')
             else:
@@ -543,6 +549,7 @@ class LinkControl:
 
     def decode(self, data):
         return self.Response(data)
+
 
 class ReadDataByIdentifier:
     """ ReadDataByIdentifier service """
@@ -635,7 +642,6 @@ class ReadDataByPeriodicIdentifier:
         # 0x05 - 0xFF: ISOSAEReserved
         })
 
-
     class Response(GenericResponse):
         def __init__(self, data):
             super().__init__(ReadDataByPeriodicIdentifier.SID, data)
@@ -654,7 +660,6 @@ class ReadDataByPeriodicIdentifier:
                              'for this transmission mode')
         self.transmission_mode = transmission_mode
         self.data_identifiers = list(data_identifiers)
-            
 
     def encode(self):
         return [self.SID, self.transmission_mode] + self.data_identifiers
@@ -674,7 +679,7 @@ class DynamicallyDefineDataIdentifier:
 class WriteDataByIdentifier:
     """ WriteDataByIdentifier service """
     SID = 0x2E
-    
+
     class Response(GenericResponse):
         def __init__(self, data):
             super().__init__(WriteDataByIdentifier.SID, data)
@@ -707,10 +712,10 @@ class WriteMemoryByAddress:
             # get parameter lengts from format identifier
             addr_bytes = format_identifier & 0x0F
             size_bytes = format_identifier >> 4
-            
-            self['memoryAddress'] = _from_bytes(data[2 : 2 + addr_bytes])
-            self['memorySize'] = _from_bytes(data[2 + addr_bytes :
-                                      2 + addr_bytes + size_bytes])
+
+            self['memoryAddress'] = _from_bytes(data[2: 2 + addr_bytes])
+            self['memorySize'] = _from_bytes(data[2 + addr_bytes:
+                                                  2 + addr_bytes + size_bytes])
 
     def __init__(self, memory_address, data):
         self.memory_address = memory_address
@@ -786,9 +791,10 @@ class InputOutputControlByIdentifier:
                 self.data_identifier & 0xFF] +
                 self.control_option_record +
                 self.control_enable_mask_record)
-    
+
     def decode(self, data):
         return self.Response(data)
+
 
 class RoutineControl:
     """ RoutineControl service """
