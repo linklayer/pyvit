@@ -8,7 +8,7 @@ class CanTest(unittest.TestCase):
         try:
             service.decode([0x7F, 0x33])
         except uds.NegativeResponseException as e:
-            print(e)
+            print('nrc:', e)
 
     def test_diagnostic_session_control(self):
         print('\n\nDiagnosticSessionControl')
@@ -289,10 +289,84 @@ class CanTest(unittest.TestCase):
                  1, 2, 3]
         self.assertEqual(req, valid)
 
-        resp = service.decode([0x40 + uds.ClearDiagnosticInformation.SID,
+        resp = service.decode([0x40 + uds.InputOutputControlByIdentifier.SID,
                                0xAB, 0xBA, 1, 2, 3])
         self.assertEqual(resp['dataIdentifier'], 0xABBA)
         self.assertEqual(resp['controlStatusRecord'], [1, 2, 3])
+        print(resp)
+
+    def test_routine_ctl(self):
+        print('\n\nRoutine Control')
+        service = uds.RoutineControl(
+            uds.RoutineControl.RoutineControlType.startRoutine,
+            0xABBA, [1, 2, 3, 4, 5])
+        req = service.encode()
+        print(req)
+        valid = [uds.RoutineControl.SID, 0x1, 0xAB, 0xBA, 1, 2, 3, 4, 5]
+        self.assertEqual(req, valid)
+
+        resp = service.decode([0x40 + uds.RoutineControl.SID, 0x3,
+                               0xAB, 0xBA, 1, 2, 3])
+        self.assertEqual(resp['routineControlType'],
+                         uds.RoutineControl.RoutineControlType.
+                         requestRoutineResults)
+        self.assertEqual(resp['routineIdentifier'], 0xABBA)
+        self.assertEqual(resp['routineStatusRecord'], [1, 2, 3])
+        print(resp)
+
+    def test_request_dl(self):
+        print('\n\nRequestDownload')
+        service = uds.RequestDownload(0x1000, 0x100)
+        req = service.encode()
+        print(req)
+        valid = [uds.RequestDownload.SID, 0, 0x22, 0x10, 0x0, 0x1, 0x0]
+        self.assertEqual(req, valid)
+
+        resp = service.decode([0x40 + uds.RequestDownload.SID, 0x20,
+                               0xAB, 0xBA])
+        self.assertEqual(resp['maxNumberOfBlockLength'], 0xABBA)
+        print(resp)
+
+    def test_request_upl(self):
+        print('\n\nRequestUpload')
+        service = uds.RequestUpload(0x1000, 0x100)
+        req = service.encode()
+        print(req)
+        valid = [uds.RequestUpload.SID, 0, 0x22, 0x10, 0x0, 0x1, 0x0]
+        self.assertEqual(req, valid)
+
+        resp = service.decode([0x40 + uds.RequestUpload.SID, 0x20,
+                               0xAB, 0xBA])
+        self.assertEqual(resp['maxNumberOfBlockLength'], 0xABBA)
+        print(resp)
+
+    def test_transfer_data(self):
+        print('\n\nTransferData')
+        data = ['w', 'o', 'o', 'p']
+        service = uds.TransferData(1, data)
+        req = service.encode()
+        print(req)
+        valid = [uds.TransferData.SID, 1] + data
+        self.assertEqual(req, valid)
+
+        resp = service.decode([0x40 + uds.TransferData.SID, 2,
+                               0xAB, 0xBA])
+        self.assertEqual(resp['blockSequenceCounter'], 2)
+        self.assertEqual(resp['transferResponseParameterRecord'], [0xAB, 0xBA])
+        print(resp)
+
+    def test_transfer_exit(self):
+        print('\n\nTransferExit')
+        data = [1, 2, 3]
+        service = uds.RequestTransferExit(data)
+        req = service.encode()
+        print(req)
+        valid = [uds.RequestTransferExit.SID] + data
+        self.assertEqual(req, valid)
+
+        resp = service.decode([0x40 + uds.RequestTransferExit.SID,
+                               0xAB, 0xBA])
+        self.assertEqual(resp['transferResponseParameterRecord'], [0xAB, 0xBA])
         print(resp)
 
 

@@ -773,7 +773,7 @@ class InputOutputControlByIdentifier:
 
     class Response(GenericResponse):
         def __init__(self, data):
-            super().__init__(ClearDiagnosticInformation.SID, data)
+            super().__init__(InputOutputControlByIdentifier.SID, data)
 
             self['dataIdentifier'] = _from_bytes(data[1:3])
             self['controlStatusRecord'] = data[3:]
@@ -800,40 +800,136 @@ class RoutineControl:
     """ RoutineControl service """
     SID = 0x31
 
-    def __init__(self):
-        raise NotImplementedError("Service not implemented.")
+    RoutineControlType = UDSParameter('RoutineControlType', {
+        # 0x00: ISOASAEReserved
+        'startRoutine': 0x01,
+        'stopRoutine': 0x02,
+        'requestRoutineResults': 0x03,
+        # 0x04 - 0x3F: ISOSAEReserved
+    })
+
+    class Response(GenericResponse):
+        def __init__(self, data):
+            super().__init__(RoutineControl.SID, data)
+
+            self['routineControlType'] = data[1]
+            self['routineIdentifier'] = _from_bytes(data[2:4])
+            self['routineStatusRecord'] = data[4:]
+
+    def __init__(self, routine_control_type,
+                 routine_identifier, routine_control_option_record=[]):
+        if routine_identifier < 0 or routine_identifier > 0xFFFF:
+            raise ValueError('Invalid routineIdentifier, '
+                             'must be > 0 and < 0xFF')
+        self.routine_control_type = routine_control_type
+        self.routine_identifier = routine_identifier
+        self.routine_control_option_record = routine_control_option_record
+
+    def encode(self):
+        return ([self.SID, self.routine_control_type,
+                 self.routine_identifier >> 8,
+                 self.routine_identifier & 0xFF] +
+                self.routine_control_option_record)
+
+    def decode(self, data):
+        return self.Response(data)
 
 
-class RequestDownload:
-    """ RequestDownload service """
+class RequestTransfer:
+    """ Generic service for requesting transfers, used for both
+    RequestUpload and RequestDownload """
+
+    class Response(GenericResponse):
+        def __init__(self, sid, data):
+            super().__init__(sid, data)
+            # length of maxNumberOfBlockLength is upper nybble of first byte
+            length = data[1] >> 4
+            self['maxNumberOfBlockLength'] = _from_bytes(data[2: 2 + length])
+
+    def __init__(self, sid, memory_address, memory_size,
+                 data_format_identifier=0):
+        self.sid = sid
+        self.memory_address = memory_address
+        self.memory_size = memory_size
+        self.data_format_identifier = data_format_identifier
+
+    def encode(self):
+        # addressAndLengthFormatIdentifier specifies length of address and size
+        # uppper nybble is byte length of size
+        # lower nybble is byte length of address
+        length_format_identifier = ((_byte_size(self.memory_size) << 4) +
+                                    _byte_size(self.memory_address))
+
+        return ([self.SID,
+                 self.data_format_identifier,
+                 length_format_identifier] +
+                _to_bytes(self.memory_address) +
+                _to_bytes(self.memory_size))
+
+    def decode(self, data):
+        return self.Response(self.sid, data)
+
+
+class RequestDownload(RequestTransfer):
+    """ RequestUpload service """
     SID = 0x34
 
-    def __init__(self):
-        raise NotImplementedError("Service not implemented.")
+    def __init__(self, memory_address, memory_size, data_format_identifier=0):
+        super().__init__(self.SID, memory_address,
+                         memory_size, data_format_identifier)
 
 
-class RequestUpload:
+class RequestUpload(RequestTransfer):
     """ RequestUpload service """
     SID = 0x35
 
-    def __init__(self):
-        raise NotImplementedError("Service not implemented.")
+    def __init__(self, memory_address, memory_size, data_format_identifier=0):
+        super().__init__(self.SID, memory_address,
+                         memory_size, data_format_identifier)
 
 
 class TransferData:
     """ TransferData service """
     SID = 0x36
 
-    def __init__(self):
-        raise NotImplementedError("Service not implemented.")
+    class Response(GenericResponse):
+        def __init__(self, data):
+            super().__init__(TransferData.SID, data)
+            self['blockSequenceCounter'] = data[1]
+            self['transferResponseParameterRecord'] = data[2:]
+
+    def __init__(self, block_sequence_counter,
+                 transfer_request_parameter_record=[]):
+        if block_sequence_counter < 0 or block_sequence_counter > 0xFF:
+            raise ValueError('blockSequenceCounter must be > 0 and < 0xFF')
+        self.block_sequence_counter = block_sequence_counter
+        self.req_parameter_record = transfer_request_parameter_record
+
+    def encode(self):
+        return ([self.SID, self.block_sequence_counter] +
+                self.req_parameter_record)
+
+    def decode(self, data):
+        return self.Response(data)
 
 
 class RequestTransferExit:
     """ RequestTransferExit service """
     SID = 0x37
 
-    def __init__(self):
-        raise NotImplementedError("Service not implemented.")
+    class Response(GenericResponse):
+        def __init__(self, data):
+            super().__init__(RequestTransferExit.SID, data)
+            self['transferResponseParameterRecord'] = data[1:]
+
+    def __init__(self, transfer_request_parameter_record=[]):
+        self.req_parameter_record = transfer_request_parameter_record
+
+    def encode(self):
+        return ([self.SID] + self.req_parameter_record)
+
+    def decode(self, data):
+        return self.Response(data)
 
 
 class UDSInterface(IsotpInterface):
