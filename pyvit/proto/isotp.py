@@ -128,8 +128,12 @@ class IsotpInterface:
             if self.sequence_number > 0xF:
                 self.sequence_number = 0
 
+        elif pci_type == 3:
+            # ignore received control frames
+            pass
+
         else:
-            raise ValueError('invalid PCItype parameter')
+            raise ValueError('invalid PCItype parameter: 0x%X' % pci_type)
 
     def recv(self, timeout=1):
         data = None

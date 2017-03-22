@@ -16,6 +16,11 @@ def _byte_size(value):
 def _to_bytes(value):
     # convert value to byte array, MSB first
     res = []
+
+    # return an empty list for NoneType
+    if value is None:
+        return []
+
     while value > 0:
         res = [value & 0xFF] + res
         value = value >> 8
@@ -89,7 +94,7 @@ NegativeResponse = UDSParameter('NegativeResponse', {
     'generalProgrammingFailure': 0x72,
     'wrongBlockSequenceCounter': 0x73,
     # 0x74 - 0x77: ISOSAEReserved
-    'requestCorrectlyReceived-ResponsePending': 0x78,
+    'responsePending': 0x78,
     # 0x79 - 0x7D: ISOSAEReserved
     'subFunctionNotSupportedInActiveSession': 0x7E,
     'serviceNotSupportedInActiveSession': 0x7F,
@@ -122,20 +127,45 @@ class NegativeResponseException(Exception):
     nrc_code = None
 
     def __init__(self, nrc_data):
-        self.nrc_code = nrc_data[1]
+        self.sid = nrc_data[1]
+        self.nrc_code = nrc_data[2]
 
     def __str__(self):
-        return NegativeResponse.to_str(self.nrc_code)
+        return 'NRC, SID = 0x%X: %s' % (self.sid,
+                                        NegativeResponse.to_str(self.nrc_code))
 
 
 class TimeoutException(Exception):
     pass
 
 
+class GenericRequest(dict):
+    SID = None
+    service_name = None
+
+    def __init__(self, name, sid):
+        self.SID = sid
+        self.name = name
+
+    def _check_sid(self, data):
+        if data[0] != self.SID:
+            raise ValueError('Invalid SID for service'
+                             '(got 0x%X, expected 0x%X)' %
+                             (data[0], self.SID))
+
+    def __str__(self):
+        return '%s Request: %s' % (self.name, super().__str__())
+
+
 class GenericResponse(dict):
     SID = None
+    service_name = None
 
-    def __init__(self, sid, data):
+    def __init__(self, name, sid):
+        self.SID = sid
+        self.name = name
+
+    def _check_nrc(self, data):
         """ Generic function for checking received data is valid. If data
         is not received, a timeout is raised. If an negative response was
         received an approproate exception is raised """
@@ -145,10 +175,13 @@ class GenericResponse(dict):
 
         if data[0] == 0x7F:
             raise NegativeResponseException(data)
-        elif data[0] != sid + 0x40:
+        elif data[0] != self.SID + 0x40:
             raise ValueError('Invalid SID for service'
                              '(got 0x%X, expected 0x%X)' %
-                             (data[0] + 0x40, sid + 0x40))
+                             (data[0] + 0x40, self.SID + 0x40))
+
+    def __str__(self):
+        return '%s Response: %s' % (self.name, super().__str__())
 
 
 class DiagnosticSessionControl:
@@ -168,19 +201,27 @@ class DiagnosticSessionControl:
     })
 
     class Response(GenericResponse):
-        def __init__(self, data):
-            super().__init__(DiagnosticSessionControl.SID, data)
+        def __init__(self):
+            super().__init__('DiagnosticSessionControl',
+                             DiagnosticSessionControl.SID)
+
+        def decode(self, data):
+            self._check_nrc(data)
             self['diagnosticSessionType'] = data[1]
             self['sessionParameterRecord'] = data[2:]
 
-    def __init__(self, diagnostic_session_type):
-        self.diagnostic_session_type = diagnostic_session_type
+    class Request(GenericRequest):
+        def __init__(self, diagnostic_session_type=None):
+            super().__init__('DiagnosticSessionControl',
+                             DiagnosticSessionControl.SID)
+            self['diagnosticSessionType'] = diagnostic_session_type
 
-    def encode(self):
-        return [self.SID, self.diagnostic_session_type]
+        def encode(self):
+            return [self.SID, self['diagnosticSessionType']]
 
-    def decode(self, data):
-        return self.Response(data)
+        def decode(self, data):
+            self._check_sid(data)
+            self['diagnosticSessionType'] = data[1]
 
 
 class ECUReset:
@@ -201,8 +242,11 @@ class ECUReset:
         })
 
     class Response(GenericResponse):
-        def __init__(self, data):
-            super().__init__(ECUReset.SID, data)
+        def __init__(self):
+            super().__init__('ECUReset', ECUReset.SID)
+
+        def decode(self, data):
+            self._check_nrc(data)
             self['resetType'] = data[1]
 
             # powerDownTime only present for enableRapidPowerShutDown
@@ -210,39 +254,50 @@ class ECUReset:
                     ECUReset.ResetType.enableRapidPowerShutDown):
                 self['powerDownTime'] = data[2]
 
-    def __init__(self, reset_type):
-        self.reset_type = reset_type
+    class Request(GenericRequest):
+        def __init__(self, reset_type=0):
+            super().__init__('ECUReset', ECUReset.SID)
+            self['resetType'] = reset_type
 
-    def encode(self):
-        return [self.SID, self.reset_type]
+        def encode(self):
+            return [self.SID, self['resetType']]
 
-    def decode(self, data):
-        return self.Response(data)
+        def decode(self, data):
+            self._check_sid(data)
+            self['resetType'] = data[1]
 
 
 class SecurityAccess:
     """ SecurityAccess service """
     SID = 0x27
 
-    def __init__(self, security_access_type, security_key=[]):
-        self.security_access_type = security_access_type
-        self.security_key = security_key
-
     class Response(GenericResponse):
-        def __init__(self, data):
-            super().__init__(SecurityAccess.SID, data)
+        def __init__(self):
+            super().__init__('SecurityAccess', SecurityAccess.SID)
+
+        def decode(self, data):
+            self._check_nrc(data)
             self['securityAccessType'] = data[1]
 
             # securitySeed is only present for seed requests, which are odd
             # values of securityAccessType
             if self['securityAccessType'] % 2 == 1:
-                self['securitySeed'] = data[2:]
+                self['securitySeed'] = _from_bytes(data[2:])
 
-    def encode(self):
-        return [self.SID, self.security_access_type] + self.security_key
+    class Request(GenericRequest):
+        def __init__(self, security_access_type=0, security_key=None):
+            super().__init__('SecurityAccess', SecurityAccess.SID)
+            self['securityAccessType'] = security_access_type
+            self['securityKey'] = security_key
 
-    def decode(self, data):
-        return self.Response(data)
+        def encode(self):
+            return ([self.SID, self['securityAccessType']] +
+                    _to_bytes(self['securityKey']))
+
+        def decode(self, data):
+            self._check_sid(data)
+            self['securityAccessType'] = data[1]
+            self['securityKey'] = _from_bytes(data[2:])
 
 
 class CommunicationControl:
@@ -274,23 +329,34 @@ class CommunicationControl:
         })
 
     class Response(GenericResponse):
-        def __init__(self, data):
-            super().__init__(CommunicationControl.SID, data)
+        def __init__(self):
+            super().__init__('CommunicationControl', CommunicationControl.SID)
+
+        def decode(self, data):
+            self._check_nrc(data)
             self['controlType'] = data[1]
 
-    def __init__(self, control_type, communication_type, network_number=0):
-        self.control_type = control_type
-        # communicationType lower nybble is the type of communication.
-        # upper nybble is which network to disable/enable, where 0x0 specifies
-        # all networks, 0xF specifies network the message was received on, and
-        # 0x01-0x0E specify a network by network number
-        self.communication_type = communication_type + (network_number << 4)
+    class Request(GenericRequest):
+        def __init__(self, control_type=0, communication_type=0,
+                     network_number=0):
+            super().__init__('CommunicationControl', CommunicationControl.SID)
+            self['controlType'] = control_type
+            self['communicationType'] = communication_type
+            self['networkNumber'] = network_number
 
-    def encode(self):
-        return [self.SID, self.control_type, self.communication_type]
+        def encode(self):
+            # communicationType lower nybble is the type of communication.
+            # upper nybble is which network to disable/enable, where 0x0
+            # specifies all networks, 0xF specifies network the message was
+            # received on, and 0x01-0x0E specify a network by network number
+            return [self.SID, self['controlType'],
+                    self['communicationType'] + (self['networkNumber'] << 4)]
 
-    def decode(self, data):
-        return self.Response(data)
+        def decode(self, data):
+            self._check_sid(data)
+            self['controlType'] = data[1]
+            self['communicationType'] = data[2] & 0xF
+            self['networkNumber'] = data[2] >> 4
 
 
 class TesterPresent:
@@ -298,17 +364,21 @@ class TesterPresent:
     SID = 0x3E
 
     class Response(GenericResponse):
-        def __init__(self, data):
-            super().__init__(TesterPresent.SID, data)
+        def __init__(self):
+            super().__init__('TesterPresent', TesterPresent.SID)
 
-    def __init__(self):
-        pass
+        def decode(self, data):
+            self._check_nrc(data)
 
-    def encode(self):
-        return [self.SID, 0]
+    class Request(GenericRequest):
+        def __init__(self):
+            super().__init__('TesterPresent', TesterPresent.SID)
 
-    def decode(self, data):
-        return self.Response(data)
+        def encode(self):
+            return [self.SID, 0]
+
+        def decode(self, data):
+            self._check_sid(data)
 
 
 class AccessTimingParameter:
@@ -325,8 +395,12 @@ class AccessTimingParameter:
     })
 
     class Response(GenericResponse):
-        def __init__(self, data):
-            super().__init__(AccessTimingParameter.SID, data)
+        def __init__(self):
+            super().__init__('AccessTimingParameter',
+                             AccessTimingParameter.SID)
+
+        def decode(self, data):
+            self._check_nrc(data)
             self['timingParameterAccessType'] = data[1]
             if (self['timingParameterAccessType'] ==
                 AccessTimingParameter.AccessType
@@ -336,24 +410,29 @@ class AccessTimingParameter:
                     .readCurrentlyActiveTimingParameters):
                 self['TimingParameterResponseRecord'] = data[2:]
 
-    def __init__(self, access_type, request_record=[]):
-        self.access_type = access_type
-        self.request_record = request_record
+    class Request(GenericRequest):
+        def __init__(self, access_type=0, request_record=[]):
+            super().__init__('AccessTimingParameter',
+                             AccessTimingParameter.SID)
+            self['accessType'] = access_type
+            self['requestRecord'] = request_record
 
-    def encode(self):
-        result = [self.SID, self.access_type]
+        def encode(self):
+            result = [self.SID, self['accessType']]
 
-        # TimingParameterRequestRecord is present only when
-        # timingParameterAccessType = setTimingParametersToGivenValues
-        if (self.access_type ==
-            AccessTimingParameter.AccessType
-                .setTimingParametersToGivenValues):
-            result += self.request_record
+            # TimingParameterRequestRecord is present only when
+            # timingParameterAccessType = setTimingParametersToGivenValues
+            if (self['accessType'] ==
+                AccessTimingParameter.AccessType.
+                    setTimingParametersToGivenValues):
+                result += self['requestRecord']
 
-        return result
+            return result
 
-    def decode(self, data):
-        return self.Response(data)
+        def decode(self, data):
+            self._check_sid(data)
+            self['accessType'] = data[1]
+            self['requestRecord'] = data[2:]
 
 
 class SecuredDataTransmission:
@@ -361,18 +440,26 @@ class SecuredDataTransmission:
     SID = 0x84
 
     class Response(GenericResponse):
-        def __init__(self, data):
-            super().__init__(SecuredDataTransmission.SID, data)
+        def __init__(self):
+            super().__init__('SecuredDataTransmission',
+                             SecuredDataTransmission.SID)
+
+        def decode(self, data):
+            self._check_nrc(data)
             self['securityDataResponseRecord'] = data[1:]
 
-    def __init__(self, data_record):
-        self.data_record = data_record
+    class Request(GenericRequest):
+        def __init__(self, data_record=[]):
+            super().__init__('SecuredDataTransmission',
+                             SecuredDataTransmission.SID)
+            self['dataRecord'] = data_record
 
-    def encode(self):
-        return [self.SID] + self.data_record
+        def encode(self):
+            return [self.SID] + self['dataRecord']
 
-    def decode(self, data):
-        return self.Response(data)
+        def decode(self, data):
+            self._check_sid(data)
+            self['dataRecord'] = data[1:]
 
 
 class ControlDTCSetting:
@@ -390,19 +477,27 @@ class ControlDTCSetting:
     })
 
     class Response(GenericResponse):
-        def __init__(self, data):
-            super().__init__(ControlDTCSetting.SID, data)
+        def __init__(self):
+            super().__init__('ControlDTCSetting', ControlDTCSetting.SID)
+
+        def decode(self, data):
+            self._check_nrc(data)
             self['DTCSettingType'] = data[1]
 
-    def __init__(self, dtc_setting_type, data_record=[]):
-        self.dtc_setting_type = dtc_setting_type
-        self.data_record = data_record
+    class Request(GenericRequest):
+        def __init__(self, dtc_setting_type=0, data_record=[]):
+            super().__init__('ControlDTCSetting', ControlDTCSetting.SID)
+            self['DTCSettingType'] = dtc_setting_type
+            self['DTCSettingControlOptionRecord'] = data_record
 
-    def encode(self):
-        return [self.SID, self.dtc_setting_type] + self.data_record
+        def encode(self):
+            return ([self.SID, self['DTCSettingType']] +
+                    self['DTCSettingControlOptionRecord'])
 
-    def decode(self, data):
-        return self.Response(data)
+        def decode(self, data):
+            self._check_sid(data)
+            self['DTCSettingType'] = data[1]
+            self['DTCSettingControlOptionRecord'] = data[2:]
 
 
 class ResponseOnEvent:
@@ -426,58 +521,89 @@ class ResponseOnEvent:
     })
 
     class Response(GenericResponse):
-        def __init__(self, data):
-            super().__init__(ResponseOnEvent.SID, data)
+        def __init__(self):
+            super().__init__('ResponseOnEvent', ResponseOnEvent.SID)
+
+        def decode(self, data):
+            self._check_nrc(data)
             # TODO
             self['data'] = data
 
-    def __init__(self, event_type, store_event, event_window_time=0x02,
-                 event_type_record=[], service_to_respond_to_record=[]):
-        # validate eventTypeRecord length for each eventType
-        if (event_type == self.EventType.stopResponseOnEvent and
-                len(event_type_record) != 0):
-            raise ValueError("Invalid eventTypeRecord length for eventType")
-        elif (event_type == self.EventType.onDTCStatusChange and
-                len(event_type_record) != 1):
-            raise ValueError("Invalid eventTypeRecord length for eventType")
-        elif (event_type == self.EventType.onTimerInterrupt and
-                len(event_type_record) != 1):
-            raise ValueError("Invalid eventTypeRecord length for eventType")
-        elif (event_type == self.EventType.onChangeOfDataIdentifier and
-                len(event_type_record) != 2):
-            raise ValueError("Invalid eventTypeRecord length for eventType")
-        elif (event_type == self.EventType.reportActivatedEvents and
-                len(event_type_record) != 0):
-            raise ValueError("Invalid eventTypeRecord length for eventType")
-        elif (event_type == self.EventType.startResponseOnEvent and
-                len(event_type_record) != 0):
-            raise ValueError("Invalid eventTypeRecord length for eventType")
-        elif (event_type == self.EventType.clearResponseOnEvent and
-                len(event_type_record) != 0):
-            raise ValueError("Invalid eventTypeRecord length for eventType")
-        elif (event_type == self.EventType.onComparisonOfValues and
-                len(event_type_record) != 10):
-            raise ValueError("Invalid eventTypeRecord length for eventType")
+    class Request(GenericRequest):
+        def __init__(self, event_type=0, event_window_time=0x02,
+                     event_type_record=[], service_to_respond_to_record=[]):
+            super().__init__('ResponseOnEvent', ResponseOnEvent.SID)
+            # validate eventTypeRecord length for each eventType
+            if (event_type == ResponseOnEvent.EventType.stopResponseOnEvent and
+                    len(event_type_record) != 0):
+                raise ValueError('Invalid eventTypeRecord length')
+            elif (event_type == ResponseOnEvent.EventType.onDTCStatusChange and
+                    len(event_type_record) != 1):
+                raise ValueError('Invalid eventTypeRecord length')
+            elif (event_type == ResponseOnEvent.EventType.onTimerInterrupt and
+                    len(event_type_record) != 1):
+                raise ValueError('Invalid eventTypeRecord length')
+            elif (event_type == ResponseOnEvent.EventType.
+                  onChangeOfDataIdentifier and len(event_type_record) != 2):
+                raise ValueError('Invalid eventTypeRecord length')
+            elif (event_type == ResponseOnEvent.EventType.
+                  reportActivatedEvents and len(event_type_record) != 0):
+                raise ValueError('Invalid eventTypeRecord length')
+            elif (event_type == ResponseOnEvent.EventType.
+                  startResponseOnEvent and len(event_type_record) != 0):
+                raise ValueError('Invalid eventTypeRecord length')
+            elif (event_type == ResponseOnEvent.EventType.
+                  clearResponseOnEvent and len(event_type_record) != 0):
+                raise ValueError('Invalid eventTypeRecord length')
+            elif (event_type == ResponseOnEvent.EventType.
+                  onComparisonOfValues and len(event_type_record) != 10):
+                raise ValueError('Invalid eventTypeRecord length')
 
-        self.event_type = event_type
-        self.store_event = store_event
-        # event_window_type defaults to 0x02, specifying infinite time
-        self.event_window_time = event_window_time
-        self.event_type_record = event_type_record
-        self.service_to_respond_to_record = service_to_respond_to_record
+            self['eventType'] = event_type
+            # event_window_type defaults to 0x02, specifying infinite time
+            self['eventWindowTime'] = event_window_time
+            self['eventTypeRecord'] = event_type_record
+            self['serviceToRespondToRecord'] = service_to_respond_to_record
 
-    def encode(self):
-        event_type = self.event_type
+        def encode(self):
+            return ([self.SID, self['eventType'], self['eventWindowTime']] +
+                    self['eventTypeRecord'] + self['serviceToRespondToRecord'])
 
-        # bit 6 of event_type is 1 if event should be stored, 0 if not
-        if self.store_event:
-            event_type += 0x40
+        def decode(self, data):
+            self._check_sid(data)
+            self['eventType'] = data[1]
+            self['eventWindowTime'] = data[2]
 
-        return ([self.SID, event_type, self.event_window_time] +
-                self.event_type_record + self.service_to_respond_to_record)
+            if (self['eventType'] ==
+                    ResponseOnEvent.EventType.stopResponseOnEvent):
+                event_type_record_len = 0
+            elif (self['eventType'] ==
+                  ResponseOnEvent.EventType.onDTCStatusChange):
+                event_type_record_len = 1
+            elif (self['eventType'] ==
+                  ResponseOnEvent.EventType.onTimerInterrupt):
+                event_type_record_len = 1
+            elif (self['eventType'] ==
+                  ResponseOnEvent.EventType.onChangeOfDataIdentifier):
+                event_type_record_len = 2
+            elif (self['eventType'] ==
+                  ResponseOnEvent.EventType.reportActivatedEvents):
+                event_type_record_len = 0
+            elif (self['eventType'] ==
+                  ResponseOnEvent.EventType.startResponseOnEvent):
+                event_type_record_len = 0
+            elif (self['eventType'] ==
+                  ResponseOnEvent.EventType.clearResponseOnEvent):
+                event_type_record_len = 0
+            elif (self['eventType'] ==
+                  ResponseOnEvent.EventType.onComparisonOfValues):
+                event_type_record_len = 10
 
-    def decode(self, data):
-        return self.Response(data)
+            self['eventTypeRecord'] = data[3: 3 + event_type_length]
+            try:
+                self['serviceToRespondToRecord'] = data[3 + event_type_length:]
+            except IndexError:
+                self['serviceToRespondToRecord'] = None
 
 
 class LinkControl:
@@ -512,43 +638,48 @@ class LinkControl:
     })
 
     class Response(GenericResponse):
-        def __init__(self, data):
-            super().__init__(LinkControl.SID, data)
+        def __init__(self):
+            super().__init__('LinkControl', LinkControl.SID)
+
+        def decode(self, data):
+            self._check_nrc(data)
             self['linkControlType'] = data[1]
 
-    def __init__(self, link_control_type, baudrate=None):
-        self.link_control_type = link_control_type
+    class Request(GenericRequest):
+        def __init__(self, link_control_type=0, link_baudrate_record=[]):
+            super().__init__('LinkControl', LinkControl.SID)
+            self['linkControlType'] = link_control_type
 
-        # baudrate can be a bit/s value (FixedBaudrate)
-        # or a baudrateIdentifier (SpecificBaudrate)
-        # validate and convert to an array of bytes
-        if (link_control_type ==
-            self.LinkControlType.
-                verifyBaudrateTransitionWithFixedBaudrate):
-            if baudrate is None or baudrate > 0xFF:
-                raise ValueError('Invalid fixed baudrate')
+            # baudrate can be a bit/s value (FixedBaudrate)
+            # or a baudrateIdentifier (SpecificBaudrate)
+            # validate and convert to an array of bytes
+            if (link_control_type ==
+                LinkControl.LinkControlType.
+                    verifyBaudrateTransitionWithFixedBaudrate):
+                if link_baudrate_record > 0xFF:
+                    raise ValueError('Invalid fixed baudrate')
+                else:
+                    self['linkBaudrateRecord'] = [link_baudrate_record]
+            elif (link_control_type ==
+                  LinkControl.LinkControlType.
+                    verifyBaudrateTransitionWithSpecificBaudrate):
+                if link_baudrate_record > 0xFFFFFF:
+                    raise ValueError('Invalid specific baudrate')
+                else:
+                    self['linkBaudrateRecord'] = [baudrate >> 16,
+                                                  (baudrate >> 8) & 0xFF,
+                                                  baudrate & 0xFF]
             else:
-                self.baudrate = [baudrate]
-        elif (link_control_type ==
-              self.LinkControlType.
-                verifyBaudrateTransitionWithSpecificBaudrate):
-            if baudrate is None or baudrate > 0xFFFFFF:
-                raise ValueError('Invalid specific baudrate')
-            else:
-                self.baudrate = [baudrate >> 16,
-                                 (baudrate >> 8) & 0xFF,
-                                 baudrate & 0xFF]
-        else:
-            self.baudrate = baudrate
+                self['linkBaudrateRecord'] = link_baudrate_record
 
-    def encode(self):
-        if self.baudrate is None:
-            return [self.SID, self.link_control_type]
-        else:
-            return [self.SID, self.link_control_type] + self.baudrate
+        def encode(self):
+            return ([self.SID, self['linkControlType']] +
+                    self['linkBaudrateRecord'])
 
-    def decode(self, data):
-        return self.Response(data)
+        def decode(self, data):
+            self._check_sid(data)
+            self['linkControlType'] = data[1]
+            self['linkBaudrateRecord'] = data[2:]
 
 
 class ReadDataByIdentifier:
@@ -557,23 +688,30 @@ class ReadDataByIdentifier:
     SID = 0x22
 
     class Response(GenericResponse):
-        def __init__(self, data):
-            super().__init__(ReadDataByIdentifier.SID, data)
+        def __init__(self):
+            super().__init__('ReadDataByIdentifier', ReadDataByIdentifier.SID)
+
+        def decode(self, data):
+            self._check_nrc(data)
             self['dataIdentifier'] = (data[1] << 8) + data[2]
             self['dataRecord'] = data[3:]
 
-    def __init__(self, data_identifier):
-        if data_identifier < 0 or data_identifier > 0xFFFF:
-            raise ValueError('Invalid dataIdentifier, must be > 0 and < 0xFF')
-        self.data_identifier = data_identifier
+    class Request(GenericRequest):
+        def __init__(self, data_identifier=0):
+            super().__init__('ReadDataByIdentifier', ReadDataByIdentifier.SID)
+            if data_identifier < 0 or data_identifier > 0xFFFF:
+                raise ValueError('Invalid dataIdentifier, '
+                                 'must be > 0 and < 0xFF')
+            self['dataIdentifier'] = data_identifier
 
-    def encode(self):
-        return [self.SID,
-                (self.data_identifier >> 8),
-                self.data_identifier & 0xFF]
+        def encode(self):
+            return [self.SID,
+                    self['dataIdentifier'] >> 8,
+                    self['dataIdentifier'] & 0xFF]
 
-    def decode(self, data):
-        return self.Response(data)
+        def decode(self, data):
+            self._check_sid(data)
+            self['dataIdentifer'] = _from_bytes(data[1:3])
 
 
 class ReadMemoryByAddress:
@@ -581,27 +719,40 @@ class ReadMemoryByAddress:
     SID = 0x23
 
     class Response(GenericResponse):
-        def __init__(self, data):
-            super().__init__(ReadMemoryByAddress.SID, data)
+        def __init__(self):
+            super().__init__('ReadMemoryByAddress', ReadMemoryByAddress.SID)
+
+        def decode(self, data):
+            self._check_nrc(data)
             self['dataRecord'] = data[1:]
 
-    def __init__(self, memory_address, memory_size):
-        self.memory_address = memory_address
-        self.memory_size = memory_size
+    class Request(GenericRequest):
+        def __init__(self, memory_address, memory_size):
+            super().__init__('ReadMemoryByAddress', ReadMemoryByAddress.SID)
+            self['memoryAddress'] = memory_address
+            self['memorySize'] = memory_size
 
-    def encode(self):
-        # addressAndLengthFormatIdentifier specifies length of address and size
-        # uppper nybble is byte length of size
-        # lower nybble is byte length of address
-        format_identifier = ((_byte_size(self.memory_size) << 4) +
-                             _byte_size(self.memory_address))
+        def encode(self):
+            # addressAndLengthFormatIdentifier specifies length of
+            # address and size
+            # uppper nybble is byte length of size
+            # lower nybble is byte length of address
+            format_identifier = ((_byte_size(self['memorySize']) << 4) +
+                                 _byte_size(self['memoryAddress']))
 
-        return ([self.SID, format_identifier] +
-                _to_bytes(self.memory_address) +
-                _to_bytes(self.memory_size))
+            return ([self.SID, format_identifier] +
+                    _to_bytes(self['memoryAddress']) +
+                    _to_bytes(self['memorySize']))
 
-    def decode(self, data):
-        return self.Response(data)
+        def decode(self, data):
+            self._check_sid(sid)
+            memory_size_size = data[1] >> 4
+            memory_address_size = data[1] & 0x0F
+            self['memoryAddress'] = _from_bytes(data[2:
+                                                     2 + memory_address_size])
+            self['memorySize'] = _from_bytes(data[2 + memory_address_size:
+                                                  2 + memory_address_size +
+                                                  memory_size_size])
 
 
 class ReadScalingDataByIdentifier:
@@ -609,24 +760,33 @@ class ReadScalingDataByIdentifier:
     SID = 0x24
 
     class Response(GenericResponse):
-        def __init__(self, data):
-            super().__init__(ReadScalingDataByIdentifier.SID, data)
+        def __init__(self):
+            super().__init__('ReadScalingDataByIdentifier',
+                             ReadScalingDataByIdentifier.SID)
+
+        def decode(self, data):
+            self._check_nrc(data)
             self['dataIdentifier'] = (data[1] << 8) + data[2]
             # TODO, decode more specifically
             self['scalingData'] = data[3:]
 
-    def __init__(self, data_identifier):
-        if data_identifier < 0 or data_identifier > 0xFFFF:
-            raise ValueError('Invalid dataIdentifier, must be > 0 and < 0xFF')
-        self.data_identifier = data_identifier
+    class Request(GenericRequest):
+        def __init__(self, data_identifier):
+            super().__init__('ReadScalingDataByIdentifier',
+                             ReadScalingDataByIdentifier.SID)
+            if data_identifier < 0 or data_identifier > 0xFFFF:
+                raise ValueError('Invalid dataIdentifier, '
+                                 'must be > 0 and < 0xFF')
+            self['dataIdentifier'] = data_identifier
 
-    def encode(self):
-        return [self.SID,
-                (self.data_identifier >> 8),
-                self.data_identifier & 0xFF]
+        def encode(self):
+            return [self.SID,
+                    (self['dataIdentifier'] >> 8),
+                    self['dataIdentifier'] & 0xFF]
 
-    def decode(self, data):
-        return self.Response(data)
+        def decode(self, data):
+            self.check_sid(data)
+            self['dataIdentifer'] = _from_bytes(data[1:3])
 
 
 class ReadDataByPeriodicIdentifier:
@@ -643,37 +803,53 @@ class ReadDataByPeriodicIdentifier:
         })
 
     class Response(GenericResponse):
-        def __init__(self, data):
-            super().__init__(ReadDataByPeriodicIdentifier.SID, data)
-            if len(data) > 1:
-                # this response has a periodic response, in one of two formats
-                # we can't know what format the server uses, so return data
-                # unformatted
-                self['periodicReponse'] = data
+        def __init__(self):
+            super().__init__('ReadDataByPeriodicIdentifier',
+                             ReadDataByPeriodicIdentifier.SID)
 
-    def __init__(self, transmission_mode, *data_identifiers):
-        if transmission_mode < 1 or transmission_mode > 4:
-            raise ValueError('Invalid transmission mode')
-        if (transmission_mode != self.TransmissionMode.stopSending and
-                len(data_identifiers) == 0):
-            raise ValueError('At least one dataIdentifier must be provided '
-                             'for this transmission mode')
-        self.transmission_mode = transmission_mode
-        self.data_identifiers = list(data_identifiers)
+        def decode(self, data):
+            self._check_nrc(data)
+            # this response has a periodic response, in one of two formats
+            # we can't know what format the server uses, so return data
+            # unformatted
+            self['periodicReponse'] = data[1:]
 
-    def encode(self):
-        return [self.SID, self.transmission_mode] + self.data_identifiers
+    class Request(GenericRequest):
+        def __init__(self, transmission_mode=1, *data_identifiers):
+            super().__init__('ReadDataByPeriodicIdentifier',
+                             ReadDataByPeriodicIdentifier.SID)
+            if transmission_mode < 1 or transmission_mode > 4:
+                raise ValueError('Invalid transmission mode')
 
-    def decode(self, data):
-        return self.Response(data)
+            if (transmission_mode != ReadDataByPeriodicIdentifier.
+                TransmissionMode.stopSending and len(data_identifiers) ==
+                    0):
+                raise ValueError('At least one dataIdentifier must be '
+                                 'provided for this transmission mode')
+            self['transmissionMode'] = transmission_mode
+            self['dataIdentifiers'] = list(data_identifiers)
+
+        def encode(self):
+            return ([self.SID, self['transmissionMode']] +
+                    self['dataIdentifiers'])
+
+        def decode(self, data):
+            self._check_sid(data)
+            self['transmissionMode'] = data[1]
+            self['dataIdentifiers'] = data[2:]
 
 
 class DynamicallyDefineDataIdentifier:
     """ DynamicallyDefineDataIdentifier service """
     SID = 0x2C
 
-    def __init__(self):
-        raise NotImplementedError("Service not implemented.")
+    def Response(GenericResponse):
+        def __init__(self):
+            raise NotImplementedError("Service not implemented.")
+
+    def Request(GenericRequest):
+        def __init__(self):
+            raise NotImplementedError("Service not implemented.")
 
 
 class WriteDataByIdentifier:
@@ -681,24 +857,33 @@ class WriteDataByIdentifier:
     SID = 0x2E
 
     class Response(GenericResponse):
-        def __init__(self, data):
-            super().__init__(WriteDataByIdentifier.SID, data)
-            self['dataIdentifier'] = (data[1] << 8) + data[2]
+        def __init__(self):
+            super().__init__('WriteDataByIdentifier',
+                             WriteDataByIdentifier.SID)
 
-    def __init__(self, data_identifier, data):
-        if data_identifier < 0 or data_identifier > 0xFFFF:
-            raise ValueError('Invalid dataIdentifier, must be > 0 and < 0xFF')
-        self.data_identifier = data_identifier
-        self.data = data
+        def decode(self, data):
+            self._check_nrc(data)
+            self['dataIdentifier'] = _from_bytes(data[1:3])
 
-    def encode(self):
-        return ([self.SID,
-                (self.data_identifier >> 8),
-                self.data_identifier & 0xFF] +
-                self.data)
+    class Request(GenericRequest):
+        def __init__(self, data_identifier=0, data_record=[]):
+            super().__init__('WriteDataByIdentifier',
+                             WriteDataByIdentifier.SID)
 
-    def decode(self, data):
-        return self.Response(data)
+            if data_identifier < 0 or data_identifier > 0xFFFF:
+                raise ValueError('Invalid dataIdentifier, '
+                                 'must be > 0 and < 0xFF')
+            self['dataIdentifier'] = data_identifier
+            self['dataRecord'] = data_record
+
+        def encode(self):
+            return ([self.SID] + _to_bytes(self['dataIdentifier']) +
+                    self['dataRecord'])
+
+        def decode(self, data):
+            self._check_sid(data)
+            self['dataIdentifier'] = _from_bytes(data[1:3])
+            self['dataRecord'] = _from_bytes(data[3:])
 
 
 class WriteMemoryByAddress:
@@ -706,8 +891,11 @@ class WriteMemoryByAddress:
     SID = 0x3D
 
     class Response(GenericResponse):
-        def __init__(self, data):
-            super().__init__(WriteMemoryByAddress.SID, data)
+        def __init__(self):
+            super().__init__('WriteMemoryByAddress', WriteMemoryByAddress.SID)
+
+        def decode(self, data):
+            self._check_nrc(data)
             format_identifier = data[1]
             # get parameter lengts from format identifier
             addr_bytes = format_identifier & 0x0F
@@ -717,25 +905,36 @@ class WriteMemoryByAddress:
             self['memorySize'] = _from_bytes(data[2 + addr_bytes:
                                                   2 + addr_bytes + size_bytes])
 
-    def __init__(self, memory_address, data):
-        self.memory_address = memory_address
-        self.data = data
+    class Request(GenericRequest):
+        def __init__(self, memory_address=0, data_record=[], memory_size=None):
+            super().__init__('WriteMemoryByAddress', WriteMemoryByAddress.SID)
+            self['memoryAddress'] = memory_address
+            self['dataRecord'] = data_record
+            if memory_size is None:
+                self['memorySize'] = len(data_record)
+            else:
+                self['memorySize'] = memory_size
 
-    def encode(self):
-        memory_size = len(self.data)
-        # addressAndLengthFormatIdentifier specifies length of address and size
-        # uppper nybble is byte length of size
-        # lower nybble is byte length of address
-        format_identifier = ((_byte_size(memory_size) << 4) +
-                             _byte_size(self.memory_address))
+        def encode(self):
+            # addressAndLengthFormatIdentifier specifies length of address and
+            # size
+            # uppper nybble is byte length of size
+            # lower nybble is byte length of address
+            format_identifier = ((_byte_size(self['memorySize']) << 4) +
+                                 _byte_size(self['memoryAddress']))
 
-        return ([self.SID, format_identifier] +
-                _to_bytes(self.memory_address) +
-                _to_bytes(memory_size) +
-                self.data)
+            return ([self.SID, format_identifier] +
+                    _to_bytes(self['memoryAddress']) +
+                    _to_bytes(self['memorySize']) +
+                    self['dataRecord'])
 
-    def decode(self, data):
-        return self.Response(data)
+        def decode(self, data):
+            addr_bytes = format_identifier & 0x0F
+            size_bytes = format_identifier >> 4
+            self['memoryAddress'] = _from_bytes(data[2: 2 + addr_bytes])
+            self['memorySize'] = _from_bytes(data[2 + addr_bytes:
+                                                  2 + addr_bytes + size_bytes])
+            self['dataRecord'] = data[2 + addr_bytes + size_bytes:]
 
 
 class ClearDiagnosticInformation:
@@ -743,20 +942,25 @@ class ClearDiagnosticInformation:
     SID = 0x14
 
     class Response(GenericResponse):
-        def __init__(self, data):
-            super().__init__(ClearDiagnosticInformation.SID, data)
+        def __init__(self):
+            super().__init__('ClearDiagnosticInformation',
+                             ClearDiagnosticInformation.SID)
 
-    def __init__(self, group_of_dtc):
-        self.group_of_dtc = group_of_dtc
+        def decode(self, data):
+            self._check_nrc(data)
 
-    def encode(self):
-        return [self.SID,
-                self.group_of_dtc >> 16,
-                (self.group_of_dtc >> 8) & 0xFF,
-                self.group_of_dtc & 0xFF]
+    class Request(GenericRequest):
+        def __init__(self, group_of_dtc=0):
+            super().__init__('ClearDiagnosticInformation',
+                             ClearDiagnosticInformation.SID)
+            self['groupOfDTC'] = group_of_dtc
 
-    def decode(self, data):
-        return self.Response(data)
+        def encode(self):
+            return [self.SID] + _to_bytes(self['groupOfDTC'])
+
+        def decode(self, data):
+            self._check_sid(data)
+            self['groupOfDTC'] = data[1:]
 
 
 class ReadDTCInformation:
@@ -772,28 +976,38 @@ class InputOutputControlByIdentifier:
     SID = 0x2F
 
     class Response(GenericResponse):
-        def __init__(self, data):
-            super().__init__(InputOutputControlByIdentifier.SID, data)
+        def __init__(self):
+            super().__init__('InputOutputControlByIdentifier',
+                             InputOutputControlByIdentifier.SID)
 
+        def decode(self, data):
+            self._check_nrc(data)
             self['dataIdentifier'] = _from_bytes(data[1:3])
             self['controlStatusRecord'] = data[3:]
 
-    def __init__(self, data_identifier, control_option_record,
-                 control_enable_mask_record=[]):
-        if data_identifier < 0 or data_identifier > 0xFFFF:
-            raise ValueError('Invalid dataIdentifier, must be > 0 and < 0xFF')
-        self.data_identifier = data_identifier
-        self.control_option_record = control_option_record
-        self.control_enable_mask_record = control_enable_mask_record
+    class Request(GenericRequest):
+        def __init__(self, data_identifier=0, control_option_record=0,
+                     control_enable_mask_record=[]):
+            super().__init__('InputOutputControlByIdentifier',
+                             InputOutputControlByIdentifier.SID)
+            if data_identifier < 0 or data_identifier > 0xFFFF:
+                raise ValueError('Invalid dataIdentifier, '
+                                 'must be >= 0 and <= 0xFFFF')
+            self['dataIdentifier'] = data_identifier
+            self['controlOptionRecord'] = control_option_record
+            self['controlEnableMaskRecord'] = control_enable_mask_record
 
-    def encode(self):
-        return ([self.SID, self.data_identifier >> 8,
-                self.data_identifier & 0xFF] +
-                self.control_option_record +
-                self.control_enable_mask_record)
+        def encode(self):
+            return ([self.SID] +
+                    _to_bytes(self['dataIdentifier']) +
+                    self['controlOptionRecord'] +
+                    self['controlEnableMaskRecord'])
 
-    def decode(self, data):
-        return self.Response(data)
+        def decode(self, data):
+            self._check_sid(data)
+            self['dataIdentifier'] = _from_bytes(data[1:3])
+            self['controlOptionRecord'] = data[3]
+            self['controlEnableMaskRecord'] = data[4:]
 
 
 class RoutineControl:
@@ -809,30 +1023,37 @@ class RoutineControl:
     })
 
     class Response(GenericResponse):
-        def __init__(self, data):
-            super().__init__(RoutineControl.SID, data)
+        def __init__(self):
+            super().__init__('RoutineControl', RoutineControl.SID)
 
+        def decode(self, data):
+            self._check_nrc(data)
             self['routineControlType'] = data[1]
             self['routineIdentifier'] = _from_bytes(data[2:4])
             self['routineStatusRecord'] = data[4:]
 
-    def __init__(self, routine_control_type,
-                 routine_identifier, routine_control_option_record=[]):
-        if routine_identifier < 0 or routine_identifier > 0xFFFF:
-            raise ValueError('Invalid routineIdentifier, '
-                             'must be > 0 and < 0xFF')
-        self.routine_control_type = routine_control_type
-        self.routine_identifier = routine_identifier
-        self.routine_control_option_record = routine_control_option_record
+    class Request(GenericRequest):
+        def __init__(self, routine_control_type=0,
+                     routine_identifier=0,
+                     routine_control_option_record=[]):
+            super().__init__('RoutineControl', RoutineControl.SID)
+            if routine_identifier < 0 or routine_identifier > 0xFFFF:
+                raise ValueError('Invalid routineIdentifier, '
+                                 'must be > 0 and < 0xFFFF')
+            self['routineControlType'] = routine_control_type
+            self['routineIdentifier'] = routine_identifier
+            self['routineControlOptionRecord'] = routine_control_option_record
 
-    def encode(self):
-        return ([self.SID, self.routine_control_type,
-                 self.routine_identifier >> 8,
-                 self.routine_identifier & 0xFF] +
-                self.routine_control_option_record)
+        def encode(self):
+            return ([self.SID, self['routineControlType']] +
+                    _to_bytes(self['routineIdentifier']) +
+                    self['routineControlOptionRecord'])
 
-    def decode(self, data):
-        return self.Response(data)
+        def decode(self, data):
+            self._check_sid(data)
+            self['routineControlType'] = data[1]
+            self['routineIdentifier'] = _from_bytes(data[2:4])
+            self['routineControlOptionRecord'] = _from_bytes(data[4:])
 
 
 class RequestTransfer:
@@ -840,52 +1061,79 @@ class RequestTransfer:
     RequestUpload and RequestDownload """
 
     class Response(GenericResponse):
-        def __init__(self, sid, data):
-            super().__init__(sid, data)
+        def __init__(self, name, sid):
+            super().__init__(name, sid)
+
+        def decode(self, data):
+            self._check_nrc(data)
             # length of maxNumberOfBlockLength is upper nybble of first byte
             length = data[1] >> 4
             self['maxNumberOfBlockLength'] = _from_bytes(data[2: 2 + length])
 
-    def __init__(self, sid, memory_address, memory_size,
-                 data_format_identifier=0):
-        self.sid = sid
-        self.memory_address = memory_address
-        self.memory_size = memory_size
-        self.data_format_identifier = data_format_identifier
+    class Request(GenericRequest):
+        def __init__(self, name, sid, memory_address, memory_size,
+                     data_format_identifier):
+            super().__init__(name, sid)
+            self['memoryAddress'] = memory_address
+            self['memorySize'] = memory_size
+            self['dataFormatIdentifier'] = data_format_identifier
 
-    def encode(self):
-        # addressAndLengthFormatIdentifier specifies length of address and size
-        # uppper nybble is byte length of size
-        # lower nybble is byte length of address
-        length_format_identifier = ((_byte_size(self.memory_size) << 4) +
-                                    _byte_size(self.memory_address))
+        def encode(self):
+            # addressAndLengthFormatIdentifier specifies length of address and
+            # size
+            # uppper nybble is byte length of size
+            # lower nybble is byte length of address
+            length_format_identifier = ((_byte_size(self['memorySize']) << 4) +
+                                        _byte_size(self['memoryAddress']))
 
-        return ([self.SID,
-                 self.data_format_identifier,
-                 length_format_identifier] +
-                _to_bytes(self.memory_address) +
-                _to_bytes(self.memory_size))
+            return ([self.SID,
+                    self['dataFormatIdentifier'],
+                    length_format_identifier] +
+                    _to_bytes(self['memoryAddress']) +
+                    _to_bytes(self['memorySize']))
 
-    def decode(self, data):
-        return self.Response(self.sid, data)
+        def decode(self, data):
+            self._check_sid(data)
+            self['dataFormatIdentifier'] = data[1]
+            size_bytes = data[2] >> 4
+            address_bytes = data[2] & 0x0F
+            self['memoryAddress'] = data[3: 3 + address_bytes]
+            self['memorySize'] = data[3 + address_bytes:
+                                      3 + address_bytes + size_bytes]
 
 
-class RequestDownload(RequestTransfer):
+class RequestDownload:
     """ RequestUpload service """
     SID = 0x34
 
-    def __init__(self, memory_address, memory_size, data_format_identifier=0):
-        super().__init__(self.SID, memory_address,
-                         memory_size, data_format_identifier)
+    class Response(RequestTransfer.Response):
+        def __init__(self):
+            super().__init__('RequestDownload', RequestDownload.SID)
+
+    class Request(RequestTransfer.Request):
+        def __init__(self, memory_address=0,
+                     memory_size=0,
+                     data_format_identifier=0):
+            super().__init__('RequestDownload', RequestDownload.SID,
+                             memory_address, memory_size,
+                             data_format_identifier)
 
 
 class RequestUpload(RequestTransfer):
     """ RequestUpload service """
     SID = 0x35
 
-    def __init__(self, memory_address, memory_size, data_format_identifier=0):
-        super().__init__(self.SID, memory_address,
-                         memory_size, data_format_identifier)
+    class Response(RequestTransfer.Response):
+        def __init__(self):
+            super().__init__('RequestUpload', RequestUpload.SID)
+
+    class Request(RequestTransfer.Request):
+        def __init__(self, memory_address=0,
+                     memory_size=0,
+                     data_format_identifier=0):
+            super().__init__('RequestUpload', RequestUpload.SID,
+                             memory_address, memory_size,
+                             data_format_identifier)
 
 
 class TransferData:
@@ -893,24 +1141,35 @@ class TransferData:
     SID = 0x36
 
     class Response(GenericResponse):
-        def __init__(self, data):
-            super().__init__(TransferData.SID, data)
+        def __init__(self):
+            super().__init__('TransferData', TransferData.SID)
+
+        def decode(self, data):
+            self._check_nrc(data)
             self['blockSequenceCounter'] = data[1]
             self['transferResponseParameterRecord'] = data[2:]
 
-    def __init__(self, block_sequence_counter,
-                 transfer_request_parameter_record=[]):
-        if block_sequence_counter < 0 or block_sequence_counter > 0xFF:
-            raise ValueError('blockSequenceCounter must be > 0 and < 0xFF')
-        self.block_sequence_counter = block_sequence_counter
-        self.req_parameter_record = transfer_request_parameter_record
+    class Request(GenericRequest):
+        def __init__(self, block_sequence_counter=0,
+                     transfer_request_parameter_record=[]):
+            super().__init__('TransferData', TransferData.SID)
 
-    def encode(self):
-        return ([self.SID, self.block_sequence_counter] +
-                self.req_parameter_record)
+            if block_sequence_counter < 0 or block_sequence_counter > 0xFF:
+                raise ValueError('blockSequenceCounter '
+                                 'must be >= 0 and <= 0xFF')
 
-    def decode(self, data):
-        return self.Response(data)
+            self['blockSequenceCounter'] = block_sequence_counter
+            self['transferRequestParameterRecord'] = (
+                transfer_request_parameter_record)
+
+        def encode(self):
+            return ([self.SID, self['blockSequenceCounter']] +
+                    self['transferRequestParameterRecord'])
+
+        def decode(self, data):
+            self._check_sid(data)
+            self['blockSequenceCounter'] = data[1]
+            self['transferRequestParameterRecord'] = data[2:]
 
 
 class RequestTransferExit:
@@ -918,21 +1177,60 @@ class RequestTransferExit:
     SID = 0x37
 
     class Response(GenericResponse):
-        def __init__(self, data):
-            super().__init__(RequestTransferExit.SID, data)
+        def __init__(self):
+            super().__init__('RequestTransferExit', RequestTransferExit.SID)
+
+        def decode(self, data):
+            self._check_nrc(data)
             self['transferResponseParameterRecord'] = data[1:]
 
-    def __init__(self, transfer_request_parameter_record=[]):
-        self.req_parameter_record = transfer_request_parameter_record
+    class Request(GenericRequest):
+        def __init__(self, transfer_request_parameter_record=[]):
+            super().__init__('RequestTransferExit', RequestTransferExit.SID)
+            self['transferRequestParameterRecord'] = (
+                transfer_request_parameter_record)
 
-    def encode(self):
-        return ([self.SID] + self.req_parameter_record)
+        def encode(self):
+            return [self.SID] + self['transferRequestParameterRecord']
 
-    def decode(self, data):
-        return self.Response(data)
+        def decode(self, data):
+            self._check_sid(data)
+            self['transferRequestParameterRecord'] = data[1:]
 
 
 class UDSInterface(IsotpInterface):
+    SERVICES = {
+        DiagnosticSessionControl.SID: DiagnosticSessionControl,
+        ECUReset.SID: ECUReset,
+        SecurityAccess.SID: SecurityAccess,
+        CommunicationControl.SID: CommunicationControl,
+        TesterPresent.SID: TesterPresent,
+        AccessTimingParameter.SID: AccessTimingParameter,
+        SecuredDataTransmission.SID: SecuredDataTransmission,
+        ControlDTCSetting.SID: ControlDTCSetting,
+        ResponseOnEvent.SID: ResponseOnEvent,
+        LinkControl.SID: LinkControl,
+
+        ReadDataByIdentifier.SID: ReadDataByIdentifier,
+        ReadMemoryByAddress.SID: ReadMemoryByAddress,
+        ReadScalingDataByIdentifier.SID: ReadScalingDataByIdentifier,
+        ReadDataByPeriodicIdentifier.SID: ReadDataByPeriodicIdentifier,
+        DynamicallyDefineDataIdentifier.SID: DynamicallyDefineDataIdentifier,
+        WriteDataByIdentifier.SID: WriteDataByIdentifier,
+        WriteMemoryByAddress.SID: WriteMemoryByAddress,
+
+        ReadDTCInformation.SID: ReadDTCInformation,
+
+        InputOutputControlByIdentifier.SID: InputOutputControlByIdentifier,
+
+        RoutineControl.SID: RoutineControl,
+
+        RequestDownload.SID: RequestDownload,
+        RequestUpload.SID: RequestUpload,
+        TransferData.SID: TransferData,
+        RequestTransferExit.SID: RequestTransferExit,
+        }
+
     def __init__(self, dispatcher, tx_arb_id=0x7E0, rx_arb_id=0x7E8):
         super().__init__(dispatcher, tx_arb_id, rx_arb_id)
 
@@ -940,3 +1238,26 @@ class UDSInterface(IsotpInterface):
         self.send(service.encode())
         data = self.recv(timeout=timeout)
         return service.decode(data)
+
+    def decode_request(self):
+        data = self.recv()
+        try:
+            req = self.SERVICES[data[0]].Request()
+            req.decode(data)
+        except KeyError:
+            return None
+        return req
+
+    def decode_response(self):
+        data = self.recv()
+
+        if data[0] == 0x7F:
+            e = NegativeResponseException(data)
+            if e.nrc_code != NegativeResponse.responsePending:
+                raise e
+        try:
+            resp = self.SERVICES[data[0] - 0x40].Response()
+            resp.decode(data)
+        except KeyError:
+            return None
+        return resp
