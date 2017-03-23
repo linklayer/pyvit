@@ -33,12 +33,11 @@ class Bus:
 
 
 class Message(object):
-    # signals that belong to this message, indexed by start bit
-    _signals = {}
-
     def __init__(self, name, arb_id):
         self.name = name
         self.arb_id = arb_id
+        # signals that belong to this message, indexed by start bit
+        self._signals = {}
 
     def add_signal(self, signal, start_bit):
         assert isinstance(signal, Signal), 'invalid signal'
