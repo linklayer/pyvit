@@ -424,7 +424,7 @@ class AccessTimingParameter:
                 self['TimingParameterResponseRecord'] = data[2:]
 
     class Request(GenericRequest):
-        def __init__(self, access_type=0, request_record=[]):
+        def __init__(self, access_type=0, request_record=None):
             super(AccessTimingParameter.Request, self).__init__(
                 'AccessTimingParameter',
                 AccessTimingParameter.SID)
@@ -464,7 +464,7 @@ class SecuredDataTransmission:
             self['securityDataResponseRecord'] = data[1:]
 
     class Request(GenericRequest):
-        def __init__(self, data_record=[]):
+        def __init__(self, data_record=None):
             super(SecuredDataTransmission.Request, self).__init__(
                 'SecuredDataTransmission',
                 SecuredDataTransmission.SID)
@@ -503,12 +503,16 @@ class ControlDTCSetting:
             self['DTCSettingType'] = data[1]
 
     class Request(GenericRequest):
-        def __init__(self, dtc_setting_type=0, data_record=[]):
+        def __init__(self, dtc_setting_type=0,
+                     dtc_setting_control_option_record=None):
             super(ControlDTCSetting.Request, self).__init__(
                 'ControlDTCSetting',
                 ControlDTCSetting.SID)
+            if dtc_setting_control_option_record is None:
+                dtc_setting_control_option_record = []
             self['DTCSettingType'] = dtc_setting_type
-            self['DTCSettingControlOptionRecord'] = data_record
+            self['DTCSettingControlOptionRecord'] = (
+                dtc_setting_control_option_record)
 
         def encode(self):
             return ([self.SID, self['DTCSettingType']] +
@@ -552,10 +556,14 @@ class ResponseOnEvent:
 
     class Request(GenericRequest):
         def __init__(self, event_type=0, event_window_time=0x02,
-                     event_type_record=[], service_to_respond_to_record=[]):
+                     event_type_record=None, service_to_respond_to_record=None):
             super(ResponseOnEvent.Request, self).__init__(
                 'ResponseOnEvent',
                 ResponseOnEvent.SID)
+            if event_type_record is None:
+                event_type_record = []
+            if service_to_respond_to_record is None:
+                service_to_respond_to_record = []
             # validate eventTypeRecord length for each eventType
             if (event_type == ResponseOnEvent.EventType.stopResponseOnEvent and
                     len(event_type_record) != 0):
@@ -672,10 +680,13 @@ class LinkControl:
             self['linkControlType'] = data[1]
 
     class Request(GenericRequest):
-        def __init__(self, link_control_type=0, link_baudrate_record=[]):
+        def __init__(self, link_control_type=0, link_baudrate_record=None):
             super(LinkControl.Request, self).__init__('LinkControl',
                                                       LinkControl.SID)
             self['linkControlType'] = link_control_type
+
+            if link_baudrate_record is None:
+                link_baudrate_record = []
 
             # baudrate can be a bit/s value (FixedBaudrate)
             # or a baudrateIdentifier (SpecificBaudrate)
@@ -906,7 +917,7 @@ class WriteDataByIdentifier:
             self['dataIdentifier'] = _from_bytes(data[1:3])
 
     class Request(GenericRequest):
-        def __init__(self, data_identifier=0, data_record=[]):
+        def __init__(self, data_identifier=0, data_record=None):
             super(WriteDataByIdentifier.Request, self).__init__(
                 'WriteDataByIdentifier',
                 WriteDataByIdentifier.SID)
@@ -949,7 +960,8 @@ class WriteMemoryByAddress:
                                                   2 + addr_bytes + size_bytes])
 
     class Request(GenericRequest):
-        def __init__(self, memory_address=0, data_record=[], memory_size=None):
+        def __init__(self, memory_address=0, data_record=None,
+                     memory_size=None):
             super(WriteMemoryByAddress.Request, self).__init__(
                 'WriteMemoryByAddress',
                 WriteMemoryByAddress.SID)
@@ -1054,7 +1066,7 @@ class InputOutputControlByIdentifier:
 
     class Request(GenericRequest):
         def __init__(self, data_identifier=0, control_option_record=0,
-                     control_enable_mask_record=[]):
+                     control_enable_mask_record=None):
             super(InputOutputControlByIdentifier.Request, self).__init__(
                 'InputOutputControlByIdentifier',
                 InputOutputControlByIdentifier.SID)
@@ -1105,7 +1117,7 @@ class RoutineControl:
     class Request(GenericRequest):
         def __init__(self, routine_control_type=0,
                      routine_identifier=0,
-                     routine_control_option_record=[]):
+                     routine_control_option_record=None):
             super(RoutineControl.Request, self).__init__(
                 'RoutineControl',
                 RoutineControl.SID)
@@ -1232,7 +1244,7 @@ class TransferData:
 
     class Request(GenericRequest):
         def __init__(self, block_sequence_counter=0,
-                     transfer_request_parameter_record=[]):
+                     transfer_request_parameter_record=None):
             super(TransferData.Request, self).__init__('TransferData',
                                                        TransferData.SID)
 
@@ -1269,7 +1281,7 @@ class RequestTransferExit:
             self['transferResponseParameterRecord'] = data[1:]
 
     class Request(GenericRequest):
-        def __init__(self, transfer_request_parameter_record=[]):
+        def __init__(self, transfer_request_parameter_record=None):
             super(RequestTransferExit.Request, self).__init__(
                 'RequestTransferExit',
                 RequestTransferExit.SID)
