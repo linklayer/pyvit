@@ -154,7 +154,8 @@ class GenericRequest(dict):
                              (data[0], self.SID))
 
     def __str__(self):
-        return '%s Request: %s' % (self.name, super().__str__())
+        return '%s Request: %s' % (self.name, super(GenericRequest,
+                                                    self).__str__())
 
 
 class GenericResponse(dict):
@@ -181,11 +182,12 @@ class GenericResponse(dict):
                              (data[0] + 0x40, self.SID + 0x40))
 
     def __str__(self):
-        return '%s Response: %s' % (self.name, super().__str__())
+        return '%s Response: %s' % (self.name, super(GenericResponse,
+                                                     self).__str__())
 
 
 class DiagnosticSessionControl:
-    """ DiagnsoticSessionControl service """
+    """ DiagnosticSessionControl service """
     SID = 0x10
 
     DiagnosticSessionType = UDSParameter('DiagnosticSessionType', {
@@ -202,8 +204,9 @@ class DiagnosticSessionControl:
 
     class Response(GenericResponse):
         def __init__(self):
-            super().__init__('DiagnosticSessionControl',
-                             DiagnosticSessionControl.SID)
+            super(DiagnosticSessionControl.Response, self).__init__(
+                'DiagnosticSessionControl',
+                DiagnosticSessionControl.SID)
 
         def decode(self, data):
             self._check_nrc(data)
@@ -212,8 +215,9 @@ class DiagnosticSessionControl:
 
     class Request(GenericRequest):
         def __init__(self, diagnostic_session_type=None):
-            super().__init__('DiagnosticSessionControl',
-                             DiagnosticSessionControl.SID)
+            super(DiagnosticSessionControl.Request, self).__init__(
+                'DiagnosticSessionControl',
+                DiagnosticSessionControl.SID)
             self['diagnosticSessionType'] = diagnostic_session_type
 
         def encode(self):
@@ -243,7 +247,7 @@ class ECUReset:
 
     class Response(GenericResponse):
         def __init__(self):
-            super().__init__('ECUReset', ECUReset.SID)
+            super(ECUReset.Response, self).__init__('ECUReset', ECUReset.SID)
 
         def decode(self, data):
             self._check_nrc(data)
@@ -256,7 +260,7 @@ class ECUReset:
 
     class Request(GenericRequest):
         def __init__(self, reset_type=0):
-            super().__init__('ECUReset', ECUReset.SID)
+            super(ECUReset.Request, self).__init__('ECUReset', ECUReset.SID)
             self['resetType'] = reset_type
 
         def encode(self):
@@ -273,7 +277,8 @@ class SecurityAccess:
 
     class Response(GenericResponse):
         def __init__(self):
-            super().__init__('SecurityAccess', SecurityAccess.SID)
+            super(SecurityAccess.Response, self).__init__('SecurityAccess',
+                                                          SecurityAccess.SID)
 
         def decode(self, data):
             self._check_nrc(data)
@@ -286,7 +291,8 @@ class SecurityAccess:
 
     class Request(GenericRequest):
         def __init__(self, security_access_type=0, security_key=None):
-            super().__init__('SecurityAccess', SecurityAccess.SID)
+            super(SecurityAccess.Request, self).__init__('SecurityAccess',
+                                                         SecurityAccess.SID)
             self['securityAccessType'] = security_access_type
             self['securityKey'] = security_key
 
@@ -330,7 +336,9 @@ class CommunicationControl:
 
     class Response(GenericResponse):
         def __init__(self):
-            super().__init__('CommunicationControl', CommunicationControl.SID)
+            super(CommunicationControl.Response, self).__init__(
+                'CommunicationControl',
+                CommunicationControl.SID)
 
         def decode(self, data):
             self._check_nrc(data)
@@ -339,7 +347,9 @@ class CommunicationControl:
     class Request(GenericRequest):
         def __init__(self, control_type=0, communication_type=0,
                      network_number=0):
-            super().__init__('CommunicationControl', CommunicationControl.SID)
+            super(CommunicationControl.Request, self).__init__(
+                'CommunicationControl',
+                CommunicationControl.SID)
             self['controlType'] = control_type
             self['communicationType'] = communication_type
             self['networkNumber'] = network_number
@@ -365,14 +375,16 @@ class TesterPresent:
 
     class Response(GenericResponse):
         def __init__(self):
-            super().__init__('TesterPresent', TesterPresent.SID)
+            super(TesterPresent.Response, self).__init__('TesterPresent',
+                                                         TesterPresent.SID)
 
         def decode(self, data):
             self._check_nrc(data)
 
     class Request(GenericRequest):
         def __init__(self):
-            super().__init__('TesterPresent', TesterPresent.SID)
+            super(TesterPresent.Request, self).__init__('TesterPresent',
+                                                        TesterPresent.SID)
 
         def encode(self):
             return [self.SID, 0]
@@ -396,8 +408,9 @@ class AccessTimingParameter:
 
     class Response(GenericResponse):
         def __init__(self):
-            super().__init__('AccessTimingParameter',
-                             AccessTimingParameter.SID)
+            super(AccessTimingParameter.Response, self).__init__(
+                'AccessTimingParameter',
+                AccessTimingParameter.SID)
 
         def decode(self, data):
             self._check_nrc(data)
@@ -412,8 +425,9 @@ class AccessTimingParameter:
 
     class Request(GenericRequest):
         def __init__(self, access_type=0, request_record=[]):
-            super().__init__('AccessTimingParameter',
-                             AccessTimingParameter.SID)
+            super(AccessTimingParameter.Request, self).__init__(
+                'AccessTimingParameter',
+                AccessTimingParameter.SID)
             self['accessType'] = access_type
             self['requestRecord'] = request_record
 
@@ -441,8 +455,9 @@ class SecuredDataTransmission:
 
     class Response(GenericResponse):
         def __init__(self):
-            super().__init__('SecuredDataTransmission',
-                             SecuredDataTransmission.SID)
+            super(SecuredDataTransmission.Response, self).__init__(
+                'SecuredDataTransmission',
+                SecuredDataTransmission.SID)
 
         def decode(self, data):
             self._check_nrc(data)
@@ -450,8 +465,9 @@ class SecuredDataTransmission:
 
     class Request(GenericRequest):
         def __init__(self, data_record=[]):
-            super().__init__('SecuredDataTransmission',
-                             SecuredDataTransmission.SID)
+            super(SecuredDataTransmission.Request, self).__init__(
+                'SecuredDataTransmission',
+                SecuredDataTransmission.SID)
             self['dataRecord'] = data_record
 
         def encode(self):
@@ -478,7 +494,9 @@ class ControlDTCSetting:
 
     class Response(GenericResponse):
         def __init__(self):
-            super().__init__('ControlDTCSetting', ControlDTCSetting.SID)
+            super(ControlDTCSetting.Response, self).__init__(
+                'ControlDTCSetting',
+                ControlDTCSetting.SID)
 
         def decode(self, data):
             self._check_nrc(data)
@@ -486,7 +504,9 @@ class ControlDTCSetting:
 
     class Request(GenericRequest):
         def __init__(self, dtc_setting_type=0, data_record=[]):
-            super().__init__('ControlDTCSetting', ControlDTCSetting.SID)
+            super(ControlDTCSetting.Request, self).__init__(
+                'ControlDTCSetting',
+                ControlDTCSetting.SID)
             self['DTCSettingType'] = dtc_setting_type
             self['DTCSettingControlOptionRecord'] = data_record
 
@@ -522,7 +542,8 @@ class ResponseOnEvent:
 
     class Response(GenericResponse):
         def __init__(self):
-            super().__init__('ResponseOnEvent', ResponseOnEvent.SID)
+            super(ResponseOnEvent.Response, self).__init__('ResponseOnEvent',
+                                                           ResponseOnEvent.SID)
 
         def decode(self, data):
             self._check_nrc(data)
@@ -532,7 +553,9 @@ class ResponseOnEvent:
     class Request(GenericRequest):
         def __init__(self, event_type=0, event_window_time=0x02,
                      event_type_record=[], service_to_respond_to_record=[]):
-            super().__init__('ResponseOnEvent', ResponseOnEvent.SID)
+            super(ResponseOnEvent.Request, self).__init__(
+                'ResponseOnEvent',
+                ResponseOnEvent.SID)
             # validate eventTypeRecord length for each eventType
             if (event_type == ResponseOnEvent.EventType.stopResponseOnEvent and
                     len(event_type_record) != 0):
@@ -639,7 +662,8 @@ class LinkControl:
 
     class Response(GenericResponse):
         def __init__(self):
-            super().__init__('LinkControl', LinkControl.SID)
+            super(LinkControl.Response, self).__init__('LinkControl',
+                                                       LinkControl.SID)
 
         def decode(self, data):
             self._check_nrc(data)
@@ -647,7 +671,8 @@ class LinkControl:
 
     class Request(GenericRequest):
         def __init__(self, link_control_type=0, link_baudrate_record=[]):
-            super().__init__('LinkControl', LinkControl.SID)
+            super(LinkControl.Request, self).__init__('LinkControl',
+                                                      LinkControl.SID)
             self['linkControlType'] = link_control_type
 
             # baudrate can be a bit/s value (FixedBaudrate)
@@ -689,7 +714,9 @@ class ReadDataByIdentifier:
 
     class Response(GenericResponse):
         def __init__(self):
-            super().__init__('ReadDataByIdentifier', ReadDataByIdentifier.SID)
+            super(ReadDataByIdentifier.Response, self).__init__(
+                'ReadDataByIdentifier',
+                ReadDataByIdentifier.SID)
 
         def decode(self, data):
             self._check_nrc(data)
@@ -698,7 +725,9 @@ class ReadDataByIdentifier:
 
     class Request(GenericRequest):
         def __init__(self, data_identifier=0):
-            super().__init__('ReadDataByIdentifier', ReadDataByIdentifier.SID)
+            super(ReadDataByIdentifier.Request, self).__init__(
+                'ReadDataByIdentifier',
+                ReadDataByIdentifier.SID)
             if data_identifier < 0 or data_identifier > 0xFFFF:
                 raise ValueError('Invalid dataIdentifier, '
                                  'must be > 0 and < 0xFF')
@@ -720,7 +749,9 @@ class ReadMemoryByAddress:
 
     class Response(GenericResponse):
         def __init__(self):
-            super().__init__('ReadMemoryByAddress', ReadMemoryByAddress.SID)
+            super(ReadMemoryByAddress.Response, self).__init__(
+                'ReadMemoryByAddress',
+                ReadMemoryByAddress.SID)
 
         def decode(self, data):
             self._check_nrc(data)
@@ -728,7 +759,9 @@ class ReadMemoryByAddress:
 
     class Request(GenericRequest):
         def __init__(self, memory_address=0, memory_size=0):
-            super().__init__('ReadMemoryByAddress', ReadMemoryByAddress.SID)
+            super(ReadMemoryByAddress.Request, self).__init__(
+                'ReadMemoryByAddress',
+                ReadMemoryByAddress.SID)
             self['memoryAddress'] = memory_address
             self['memorySize'] = memory_size
 
@@ -761,8 +794,9 @@ class ReadScalingDataByIdentifier:
 
     class Response(GenericResponse):
         def __init__(self):
-            super().__init__('ReadScalingDataByIdentifier',
-                             ReadScalingDataByIdentifier.SID)
+            super(ReadScalingDataByIdentifier.Response, self).__init__(
+                'ReadScalingDataByIdentifier',
+                ReadScalingDataByIdentifier.SID)
 
         def decode(self, data):
             self._check_nrc(data)
@@ -772,8 +806,9 @@ class ReadScalingDataByIdentifier:
 
     class Request(GenericRequest):
         def __init__(self, data_identifier):
-            super().__init__('ReadScalingDataByIdentifier',
-                             ReadScalingDataByIdentifier.SID)
+            super(ReadScalingDataByIdentifier.Request, self).__init__(
+                'ReadScalingDataByIdentifier',
+                ReadScalingDataByIdentifier.SID)
             if data_identifier < 0 or data_identifier > 0xFFFF:
                 raise ValueError('Invalid dataIdentifier, '
                                  'must be > 0 and < 0xFF')
@@ -804,8 +839,9 @@ class ReadDataByPeriodicIdentifier:
 
     class Response(GenericResponse):
         def __init__(self):
-            super().__init__('ReadDataByPeriodicIdentifier',
-                             ReadDataByPeriodicIdentifier.SID)
+            super(ReadDataByPeriodicIdentifier.Response, self).__init__(
+                'ReadDataByPeriodicIdentifier',
+                ReadDataByPeriodicIdentifier.SID)
 
         def decode(self, data):
             self._check_nrc(data)
@@ -816,8 +852,9 @@ class ReadDataByPeriodicIdentifier:
 
     class Request(GenericRequest):
         def __init__(self, transmission_mode=1, *data_identifiers):
-            super().__init__('ReadDataByPeriodicIdentifier',
-                             ReadDataByPeriodicIdentifier.SID)
+            super(ReadDataByPeriodicIdentifier.Request, self).__init__(
+                'ReadDataByPeriodicIdentifier',
+                ReadDataByPeriodicIdentifier.SID)
             if transmission_mode < 1 or transmission_mode > 4:
                 raise ValueError('Invalid transmission mode')
 
@@ -858,8 +895,9 @@ class WriteDataByIdentifier:
 
     class Response(GenericResponse):
         def __init__(self):
-            super().__init__('WriteDataByIdentifier',
-                             WriteDataByIdentifier.SID)
+            super(WriteDataByIdentifier.Response, self).__init__(
+                'WriteDataByIdentifier',
+                WriteDataByIdentifier.SID)
 
         def decode(self, data):
             self._check_nrc(data)
@@ -867,8 +905,9 @@ class WriteDataByIdentifier:
 
     class Request(GenericRequest):
         def __init__(self, data_identifier=0, data_record=[]):
-            super().__init__('WriteDataByIdentifier',
-                             WriteDataByIdentifier.SID)
+            super(WriteDataByIdentifier.Request, self).__init__(
+                'WriteDataByIdentifier',
+                WriteDataByIdentifier.SID)
 
             if data_identifier < 0 or data_identifier > 0xFFFF:
                 raise ValueError('Invalid dataIdentifier, '
@@ -892,7 +931,9 @@ class WriteMemoryByAddress:
 
     class Response(GenericResponse):
         def __init__(self):
-            super().__init__('WriteMemoryByAddress', WriteMemoryByAddress.SID)
+            super(WriteMemoryByAddress.Response, self).__init__(
+                'WriteMemoryByAddress',
+                WriteMemoryByAddress.SID)
 
         def decode(self, data):
             self._check_nrc(data)
@@ -907,7 +948,9 @@ class WriteMemoryByAddress:
 
     class Request(GenericRequest):
         def __init__(self, memory_address=0, data_record=[], memory_size=None):
-            super().__init__('WriteMemoryByAddress', WriteMemoryByAddress.SID)
+            super(WriteMemoryByAddress.Request, self).__init__(
+                'WriteMemoryByAddress',
+                WriteMemoryByAddress.SID)
             self['memoryAddress'] = memory_address
             self['dataRecord'] = data_record
             if memory_size is None:
@@ -943,16 +986,18 @@ class ClearDiagnosticInformation:
 
     class Response(GenericResponse):
         def __init__(self):
-            super().__init__('ClearDiagnosticInformation',
-                             ClearDiagnosticInformation.SID)
+            super(ClearDiagnosticInformation.Response, self).__init__(
+                'ClearDiagnosticInformation',
+                ClearDiagnosticInformation.SID)
 
         def decode(self, data):
             self._check_nrc(data)
 
     class Request(GenericRequest):
         def __init__(self, group_of_dtc=0):
-            super().__init__('ClearDiagnosticInformation',
-                             ClearDiagnosticInformation.SID)
+            super(ClearDiagnosticInformation.Request, self).__init__(
+                'ClearDiagnosticInformation',
+                ClearDiagnosticInformation.SID)
             self['groupOfDTC'] = group_of_dtc
 
         def encode(self):
@@ -969,8 +1014,9 @@ class ReadDTCInformation:
 
     class Response(GenericResponse):
         def __init__(self):
-            super().__init__('ReadDTCInformation',
-                             ReadDTCInformation.SID)
+            super(ReadDTCInformation.Response, self).__init__(
+                'ReadDTCInformation',
+                ReadDTCInformation.SID)
 
         def decode(self, data):
             self._check_nrc(data)
@@ -979,8 +1025,9 @@ class ReadDTCInformation:
 
     class Request(GenericRequest):
         def __init__(self):
-            super().__init__('ReadDTCInformation',
-                             ReadDTCInformation.SID)
+            super(ReadDTCInformation.Request, self).__init__(
+                'ReadDTCInformation',
+                ReadDTCInformation.SID)
 
         def decode(self, data):
             self._check_sid(data)
@@ -994,8 +1041,9 @@ class InputOutputControlByIdentifier:
 
     class Response(GenericResponse):
         def __init__(self):
-            super().__init__('InputOutputControlByIdentifier',
-                             InputOutputControlByIdentifier.SID)
+            super(InputOutputControlByIdentifier.Response, self).__init__(
+                'InputOutputControlByIdentifier',
+                InputOutputControlByIdentifier.SID)
 
         def decode(self, data):
             self._check_nrc(data)
@@ -1005,8 +1053,9 @@ class InputOutputControlByIdentifier:
     class Request(GenericRequest):
         def __init__(self, data_identifier=0, control_option_record=0,
                      control_enable_mask_record=[]):
-            super().__init__('InputOutputControlByIdentifier',
-                             InputOutputControlByIdentifier.SID)
+            super(InputOutputControlByIdentifier.Request, self).__init__(
+                'InputOutputControlByIdentifier',
+                InputOutputControlByIdentifier.SID)
             if data_identifier < 0 or data_identifier > 0xFFFF:
                 raise ValueError('Invalid dataIdentifier, '
                                  'must be >= 0 and <= 0xFFFF')
@@ -1041,7 +1090,9 @@ class RoutineControl:
 
     class Response(GenericResponse):
         def __init__(self):
-            super().__init__('RoutineControl', RoutineControl.SID)
+            super(RoutineControl.Response, self).__init__(
+                'RoutineControl',
+                RoutineControl.SID)
 
         def decode(self, data):
             self._check_nrc(data)
@@ -1053,7 +1104,9 @@ class RoutineControl:
         def __init__(self, routine_control_type=0,
                      routine_identifier=0,
                      routine_control_option_record=[]):
-            super().__init__('RoutineControl', RoutineControl.SID)
+            super(RoutineControl.Request, self).__init__(
+                'RoutineControl',
+                RoutineControl.SID)
             if routine_identifier < 0 or routine_identifier > 0xFFFF:
                 raise ValueError('Invalid routineIdentifier, '
                                  'must be > 0 and < 0xFFFF')
@@ -1079,7 +1132,7 @@ class RequestTransfer:
 
     class Response(GenericResponse):
         def __init__(self, name, sid):
-            super().__init__(name, sid)
+            super(RequestTransfer.Response, self).__init__(name, sid)
 
         def decode(self, data):
             self._check_nrc(data)
@@ -1090,7 +1143,7 @@ class RequestTransfer:
     class Request(GenericRequest):
         def __init__(self, name, sid, memory_address, memory_size,
                      data_format_identifier):
-            super().__init__(name, sid)
+            super(RequestTransfer.Request, self).__init__(name, sid)
             self['memoryAddress'] = memory_address
             self['memorySize'] = memory_size
             self['dataFormatIdentifier'] = data_format_identifier
@@ -1125,15 +1178,19 @@ class RequestDownload:
 
     class Response(RequestTransfer.Response):
         def __init__(self):
-            super().__init__('RequestDownload', RequestDownload.SID)
+            super(RequestDownload.Response, self).__init__('RequestDownload',
+                                                           RequestDownload.SID)
 
     class Request(RequestTransfer.Request):
         def __init__(self, memory_address=0,
                      memory_size=0,
                      data_format_identifier=0):
-            super().__init__('RequestDownload', RequestDownload.SID,
-                             memory_address, memory_size,
-                             data_format_identifier)
+            super(RequestDownload.Request, self).__init__(
+                'RequestDownload',
+                RequestDownload.SID,
+                memory_address,
+                memory_size,
+                data_format_identifier)
 
 
 class RequestUpload(RequestTransfer):
@@ -1142,15 +1199,19 @@ class RequestUpload(RequestTransfer):
 
     class Response(RequestTransfer.Response):
         def __init__(self):
-            super().__init__('RequestUpload', RequestUpload.SID)
+            super(RequestUpload.Response, self).__init__('RequestUpload',
+                                                         RequestUpload.SID)
 
     class Request(RequestTransfer.Request):
         def __init__(self, memory_address=0,
                      memory_size=0,
                      data_format_identifier=0):
-            super().__init__('RequestUpload', RequestUpload.SID,
-                             memory_address, memory_size,
-                             data_format_identifier)
+            super(RequestUpload.Request, self).__init__(
+                'RequestUpload',
+                RequestUpload.SID,
+                memory_address,
+                memory_size,
+                data_format_identifier)
 
 
 class TransferData:
@@ -1159,7 +1220,8 @@ class TransferData:
 
     class Response(GenericResponse):
         def __init__(self):
-            super().__init__('TransferData', TransferData.SID)
+            super(TransferData.Response, self).__init__('TransferData',
+                                                        TransferData.SID)
 
         def decode(self, data):
             self._check_nrc(data)
@@ -1169,7 +1231,8 @@ class TransferData:
     class Request(GenericRequest):
         def __init__(self, block_sequence_counter=0,
                      transfer_request_parameter_record=[]):
-            super().__init__('TransferData', TransferData.SID)
+            super(TransferData.Request, self).__init__('TransferData',
+                                                       TransferData.SID)
 
             if block_sequence_counter < 0 or block_sequence_counter > 0xFF:
                 raise ValueError('blockSequenceCounter '
@@ -1195,7 +1258,9 @@ class RequestTransferExit:
 
     class Response(GenericResponse):
         def __init__(self):
-            super().__init__('RequestTransferExit', RequestTransferExit.SID)
+            super(RequestTransferExit.Response, self).__init__(
+                'RequestTransferExit',
+                RequestTransferExit.SID)
 
         def decode(self, data):
             self._check_nrc(data)
@@ -1203,7 +1268,9 @@ class RequestTransferExit:
 
     class Request(GenericRequest):
         def __init__(self, transfer_request_parameter_record=[]):
-            super().__init__('RequestTransferExit', RequestTransferExit.SID)
+            super(RequestTransferExit.Request, self).__init__(
+                'RequestTransferExit',
+                RequestTransferExit.SID)
             self['transferRequestParameterRecord'] = (
                 transfer_request_parameter_record)
 
