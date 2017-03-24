@@ -87,7 +87,7 @@ NegativeResponse = UDSParameter('NegativeResponse', {
     'invalidKey': 0x35,
     'exceedNumebrOfAttempts': 0x36,
     'requiredTimeDelayNotExpired': 0x37,
-    # 0x38 – 0x4F: reservedByExtendedDataLinkSecurityDocument
+    # 0x38 - 0x4F: reservedByExtendedDataLinkSecurityDocument
     # 0x50 - 0x6F: ISOSAEReserved
     'uploadDownloadNotAccepted': 0x70,
     'transferDataSuspended': 0x71,
