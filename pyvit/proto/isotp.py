@@ -14,6 +14,7 @@ class IsotpInterface:
         self.rx_arb_id = rx_arb_id
         self.padding_value = padding
         self._recv_queue = Queue()
+        self.block_size_counter = 0
 
         self._dispatcher.add_receiver(self._recv_queue)
 
@@ -130,20 +131,24 @@ class IsotpInterface:
             if self.sequence_number > 0xF:
                 self.sequence_number = 0
 
-            if self.block_size_counter > 0:
-                self.block_size_counter -= 1
-                if self.block_size_counter == 0:
-                    # need to send flow control
-                    fc = can.Frame(self.tx_arb_id, data=[0x30,
-                                                         self.block_size,
-                                                         self.st_min])
-                    self._dispatcher.send(fc)
-
-                    # reset block size counter
-                    self.block_size_counter = self.block_size
+        elif pci_type == 3:
+            # ignore received control frames
+            pass
 
         else:
-            raise ValueError('invalid PCItype parameter')
+            raise ValueError('invalid PCItype parameter: 0x%X' % pci_type)
+
+        if self.block_size_counter > 0:
+            self.block_size_counter -= 1
+            if self.block_size_counter == 0:
+                # need to send flow control
+                fc = can.Frame(self.tx_arb_id, data=[0x30,
+                                                     self.block_size,
+                                                     self.st_min])
+                self._dispatcher.send(fc)
+
+                # reset block size counter
+                self.block_size_counter = self.block_size
 
     def recv(self, timeout=1, bs=0, st_min=0):
         data = None
@@ -163,6 +168,9 @@ class IsotpInterface:
             try:
                 rx_frame = self._recv_queue.get(timeout=timeout)
             except Empty:
+                return None
+
+            if rx_frame is None:
                 return None
 
             if rx_frame.arb_id == self.rx_arb_id:
