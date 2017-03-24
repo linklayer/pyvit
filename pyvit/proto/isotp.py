@@ -14,6 +14,7 @@ class IsotpInterface:
         self.rx_arb_id = rx_arb_id
         self.padding_value = padding
         self._recv_queue = Queue()
+        self.block_size_counter = 0
 
         self._dispatcher.add_receiver(self._recv_queue)
 
@@ -93,9 +94,11 @@ class IsotpInterface:
             self.sequence_number = self.sequence_number + 1
 
             # send a flow control frame
-            # TODO: these block size and ST_min should be customizable
-            fc = can.Frame(self.tx_arb_id, data=[0x30, 0, 0])
+            fc = can.Frame(self.tx_arb_id, data=[0x30,
+                                                 self.block_size,
+                                                 self.st_min])
             self._dispatcher.send(fc)
+            self.block_size_counter = self.block_size
 
         elif pci_type == 2:
             # consecutive frame
@@ -132,20 +135,42 @@ class IsotpInterface:
             # ignore received control frames
             pass
 
+            if self.block_size_counter > 0:
+                self.block_size_counter -= 1
+                if self.block_size_counter == 0:
+                    # need to send flow control
+                    fc = can.Frame(self.tx_arb_id, data=[0x30,
+                                                         self.block_size,
+                                                         self.st_min])
+                    self._dispatcher.send(fc)
+
+                    # reset block size counter
+                    self.block_size_counter = self.block_size
+
         else:
             raise ValueError('invalid PCItype parameter: 0x%X' % pci_type)
 
-    def recv(self, timeout=1):
+    def recv(self, timeout=1, bs=0, st_min=0):
         data = None
         start = time.time()
 
         self._set_filter()
+
+        self.block_size = bs
+
+        if not st_min <= 0x7F and not (st_min >= 0xF1 and st_min <= 0xF9):
+            raise ValueError(
+                "st_min must be beween 0x00 and 0x7F or 0xF1 and 0xF9")
+        self.st_min = st_min
 
         while data is None:
             # attempt to get data, returning None if we timeout
             try:
                 rx_frame = self._recv_queue.get(timeout=timeout)
             except Empty:
+                return None
+
+            if rx_frame is None:
                 return None
 
             if rx_frame.arb_id == self.rx_arb_id:
@@ -201,16 +226,35 @@ class IsotpInterface:
             bytes_sent = 6
             sequence_number = 1
 
-            # now we must wait on a flow control frame
-            # TODO: do something real with ST_min and block size
-            while True:
-                rx_frame = self._recv_queue.get()
-                if (rx_frame.arb_id == self.rx_arb_id and
-                        rx_frame.data[0] == 0x30):
-                    # flow control frame received
-                    break
+            # force to wait for a flow control frame
+            fc_bs = 1
 
             while bytes_sent < len(data):
+                if fc_bs > 0:
+                    fc_bs -= 1
+                    if fc_bs == 0:
+                        # must wait for a flow control frame
+                        while True:
+                            rx_frame = self._recv_queue.get()
+                            if (rx_frame.arb_id == self.rx_arb_id and
+                                    rx_frame.data[0] == 0x30):
+                                if self.debug:
+                                    print(rx_frame)
+                                # flow control frame received, get parameters
+                                fc_bs = rx_frame.data[1]
+                                fc_stmin = rx_frame.data[2]
+                                break
+
+                # wait for fc_stmin ms/us
+                if fc_stmin < 0x80:
+                    # fc_stmin equal to ms to wait
+                    time_to_wait = fc_stmin/1000.0
+                    time.sleep(time_to_wait)
+                elif fc_stmin >= 0xF1 and fc_stmin <= 0xF9:
+                    # fc_stmin equal to 100 - 900 us to wait
+                    time_to_wait = (fc_stmin-0xF0)/1000000.0
+                    time.sleep(time_to_wait)
+
                 cf = can.Frame(self.tx_arb_id)
                 data_bytes_in_msg = min(len(data) - bytes_sent, 7)
 
@@ -230,4 +274,5 @@ class IsotpInterface:
                     sequence_number = 0
 
                 bytes_sent = bytes_sent + data_bytes_in_msg
+
         self._unset_filter()

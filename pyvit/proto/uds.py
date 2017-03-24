@@ -131,7 +131,7 @@ class NegativeResponseException(Exception):
         self.nrc_code = nrc_data[2]
 
     def __str__(self):
-        return 'NRC, SID = 0x%X: %s' % (self.sid,
+        return 'NRC: SID = 0x%X: %s' % (self.sid,
                                         NegativeResponse.to_str(self.nrc_code))
 
 
@@ -727,7 +727,7 @@ class ReadMemoryByAddress:
             self['dataRecord'] = data[1:]
 
     class Request(GenericRequest):
-        def __init__(self, memory_address, memory_size):
+        def __init__(self, memory_address=0, memory_size=0):
             super().__init__('ReadMemoryByAddress', ReadMemoryByAddress.SID)
             self['memoryAddress'] = memory_address
             self['memorySize'] = memory_size
@@ -745,7 +745,7 @@ class ReadMemoryByAddress:
                     _to_bytes(self['memorySize']))
 
         def decode(self, data):
-            self._check_sid(sid)
+            self._check_sid(data)
             memory_size_size = data[1] >> 4
             memory_address_size = data[1] & 0x0F
             self['memoryAddress'] = _from_bytes(data[2:
@@ -967,8 +967,25 @@ class ReadDTCInformation:
     """ WriteMemoryByAddress service """
     SID = 0x19
 
-    def __init__(self):
-        raise NotImplementedError("Service not implemented.")
+    class Response(GenericResponse):
+        def __init__(self):
+            super().__init__('ReadDTCInformation',
+                             ReadDTCInformation.SID)
+
+        def decode(self, data):
+            self._check_nrc(data)
+            # TODO
+            self['data'] = data[1:]
+
+    class Request(GenericRequest):
+        def __init__(self):
+            super().__init__('ReadDTCInformation',
+                             ReadDTCInformation.SID)
+
+        def decode(self, data):
+            self._check_sid(data)
+            # TODO
+            self['data'] = data[1:]
 
 
 class InputOutputControlByIdentifier:
@@ -1241,15 +1258,21 @@ class UDSInterface(IsotpInterface):
 
     def decode_request(self):
         data = self.recv()
+        if data is None:
+            return None
+
         try:
             req = self.SERVICES[data[0]].Request()
             req.decode(data)
         except KeyError:
-            return None
+            req = GenericRequest('Unknown Service', data[0])
+            req['data'] = data[1:]
         return req
 
     def decode_response(self):
         data = self.recv()
+        if data is None:
+            return None
 
         if data[0] == 0x7F:
             e = NegativeResponseException(data)
@@ -1259,5 +1282,6 @@ class UDSInterface(IsotpInterface):
             resp = self.SERVICES[data[0] - 0x40].Response()
             resp.decode(data)
         except KeyError:
-            return None
+            resp = GenericResponse('Unknown Service', data[0])
+            resp['data'] = data[1:]
         return resp

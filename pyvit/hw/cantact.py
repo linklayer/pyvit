@@ -8,7 +8,7 @@ class CantactDev:
         self.ser = serial.Serial(port)
 
     def _dev_write(self, string):
-        self.ser.write(bytes(string, encoding='ascii'))
+        self.ser.write(string.encode())
 
     def start(self):
         self._dev_write('O\r')

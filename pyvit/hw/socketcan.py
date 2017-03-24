@@ -40,7 +40,7 @@ class SocketCanDev:
             arb_id &= 0x7FFFFFFF
             is_extended = True
 
-        frame = can.Frame(arb_id, is_extended_id=is_extended)
+        frame = can.Frame(arb_id, extended=is_extended)
         # select the data bytes up to the DLC value
         frame.data = [d0, d1, d2, d3, d4, d5, d6, d7][0:dlc]
         frame.timestamp = time.time() - self.start_time
