@@ -711,7 +711,7 @@ class ReadDataByIdentifier:
 
         def decode(self, data):
             self._check_sid(data)
-            self['dataIdentifer'] = _from_bytes(data[1:3])
+            self['dataIdentifier'] = _from_bytes(data[1:3])
 
 
 class ReadMemoryByAddress:
@@ -786,7 +786,7 @@ class ReadScalingDataByIdentifier:
 
         def decode(self, data):
             self.check_sid(data)
-            self['dataIdentifer'] = _from_bytes(data[1:3])
+            self['dataIdentifier'] = _from_bytes(data[1:3])
 
 
 class ReadDataByPeriodicIdentifier:
