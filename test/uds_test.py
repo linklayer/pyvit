@@ -6,7 +6,7 @@ class CanTest(unittest.TestCase):
     def test_nrc(self):
         resp = uds.DiagnosticSessionControl.Response()
         try:
-            resp.decode([0x7F, 0x33])
+            resp.decode([0x7F, 0x21, 0x33])
         except uds.NegativeResponseException as e:
             print('nrc:', e)
 

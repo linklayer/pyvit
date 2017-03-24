@@ -135,20 +135,20 @@ class IsotpInterface:
             # ignore received control frames
             pass
 
-            if self.block_size_counter > 0:
-                self.block_size_counter -= 1
-                if self.block_size_counter == 0:
-                    # need to send flow control
-                    fc = can.Frame(self.tx_arb_id, data=[0x30,
-                                                         self.block_size,
-                                                         self.st_min])
-                    self._dispatcher.send(fc)
-
-                    # reset block size counter
-                    self.block_size_counter = self.block_size
-
         else:
             raise ValueError('invalid PCItype parameter: 0x%X' % pci_type)
+
+        if self.block_size_counter > 0:
+            self.block_size_counter -= 1
+            if self.block_size_counter == 0:
+                # need to send flow control
+                fc = can.Frame(self.tx_arb_id, data=[0x30,
+                                                     self.block_size,
+                                                     self.st_min])
+                self._dispatcher.send(fc)
+
+                # reset block size counter
+                self.block_size_counter = self.block_size
 
     def recv(self, timeout=1, bs=0, st_min=0):
         data = None
