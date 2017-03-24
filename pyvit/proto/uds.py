@@ -880,11 +880,11 @@ class DynamicallyDefineDataIdentifier:
     """ DynamicallyDefineDataIdentifier service """
     SID = 0x2C
 
-    def Response(GenericResponse):
+    class Response(GenericResponse):
         def __init__(self):
             raise NotImplementedError("Service not implemented.")
 
-    def Request(GenericRequest):
+    class Request(GenericRequest):
         def __init__(self):
             raise NotImplementedError("Service not implemented.")
 

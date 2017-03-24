@@ -5,6 +5,8 @@ from pyvit.proto import uds
 class CanTest(unittest.TestCase):
     def test_nrc(self):
         resp = uds.DiagnosticSessionControl.Response()
+        with self.assertRaises(uds.NegativeResponseException):
+            resp.decode([0x7F, 0x21, 0x33])
         try:
             resp.decode([0x7F, 0x21, 0x33])
         except uds.NegativeResponseException as e:
