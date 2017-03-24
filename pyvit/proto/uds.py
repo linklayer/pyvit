@@ -624,7 +624,9 @@ class ResponseOnEvent:
 
             self['eventTypeRecord'] = data[3: 3 + event_type_length]
             try:
-                self['serviceToRespondToRecord'] = data[3 + event_type_length:]
+                self['serviceToRespondToRecord'] = data[3 + event_type_length:
+                                                        3 + event_type_length +
+                                                        event_type_record_len]
             except IndexError:
                 self['serviceToRespondToRecord'] = None
 
