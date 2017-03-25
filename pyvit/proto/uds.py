@@ -1359,6 +1359,9 @@ class UDSInterface(IsotpInterface):
             e = NegativeResponseException(data)
             if e.nrc_code != NegativeResponse.responsePending:
                 raise e
+            else:
+                # response pending, return none for now
+                return None
         try:
             resp = self.SERVICES[data[0] - 0x40].Response()
             resp.decode(data)
