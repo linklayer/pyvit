@@ -76,7 +76,7 @@ class CantactDev:
         # parse the data bytes
         data = []
         for i in range(0, dlc):
-            data.append(int(rx_str[data_offset+i*2:7+i*2], 16))
+            data.append(int(rx_str[data_offset+i*2:(data_offset+2)+i*2], 16))
             frame.data = data
 
         return frame
