@@ -35,9 +35,8 @@ class LogPlayer:
 
         line = self.logfile.readline()
         if line == '':
-            # out of frames, cause a timeout
-            while True:
-                pass
+            # out of frames
+            return None
 
         # convert line to frame
         frame = self._log_to_frame(line)

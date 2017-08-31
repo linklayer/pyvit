@@ -1337,8 +1337,8 @@ class UDSInterface(IsotpInterface):
         data = self.recv(timeout=timeout)
         return service.decode(data)
 
-    def decode_request(self):
-        data = self.recv()
+    def decode_request(self, timeout=0.5):
+        data = self.recv(timeout=timeout)
         if data is None:
             return None
 
@@ -1350,8 +1350,8 @@ class UDSInterface(IsotpInterface):
             req['data'] = data[1:]
         return req
 
-    def decode_response(self):
-        data = self.recv()
+    def decode_response(self, timeout=0.5):
+        data = self.recv(timeout=timeout)
         if data is None:
             return None
 
