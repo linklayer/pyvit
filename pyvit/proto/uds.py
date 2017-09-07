@@ -372,6 +372,11 @@ class CommunicationControl:
 class TesterPresent:
     """ TesterPresent service """
     SID = 0x3E
+    
+    ZeroSubFunction = UDSParameter('ZeroSubFunction', {
+        'requestPosRspMsg': 0x00,
+        'suppressPosRspMsg': 0x80,
+        })
 
     class Response(GenericResponse):
         def __init__(self):
@@ -382,12 +387,16 @@ class TesterPresent:
             self._check_nrc(data)
 
     class Request(GenericRequest):
-        def __init__(self):
+        def __init__(self, suppress_response=False):
             super(TesterPresent.Request, self).__init__('TesterPresent',
                                                         TesterPresent.SID)
+            if suppress_response:
+                self['subFunction'] = TesterPresent.ZeroSubFunction.suppressPosRspMsg
+            else:
+                self['subFunction'] = TesterPresent.ZeroSubFunction.requestPosRspMsg
 
         def encode(self):
-            return [self.SID, 0]
+            return [self.SID, self['subFunction']]
 
         def decode(self, data):
             self._check_sid(data)
