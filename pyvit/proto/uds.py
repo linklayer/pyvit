@@ -1335,6 +1335,9 @@ class UDSInterface(IsotpInterface):
     def request(self, service, timeout=0.5):
         self.send(service.encode())
         data = self.recv(timeout=timeout)
+        if data is None:
+            return None
+            
         return service.decode(data)
 
     def decode_request(self, timeout=0.5):
