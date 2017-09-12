@@ -13,7 +13,7 @@ def _byte_size(value):
         return int(log(value, 256)) + 1
 
 
-def _to_bytes(value):
+def _to_bytes(value, padding=0):
     # convert value to byte array, MSB first
     res = []
 
@@ -24,6 +24,11 @@ def _to_bytes(value):
     while value > 0:
         res = [value & 0xFF] + res
         value = value >> 8
+        
+    # add '0' padding to the front of the list if specified
+    while padding > 0:
+        res = [0x00] + res
+        padding -= 1
 
     return res
 
@@ -1165,31 +1170,39 @@ class RequestTransfer:
 
     class Request(GenericRequest):
         def __init__(self, name, sid, memory_address, memory_size,
-                     data_format_identifier):
+                     data_format_identifier, address_format_identifier=None, length_format_identifier=None):
             super(RequestTransfer.Request, self).__init__(name, sid)
             self['memoryAddress'] = memory_address
             self['memorySize'] = memory_size
             self['dataFormatIdentifier'] = data_format_identifier
+            self['addressFormatIdentifier'] = address_format_identifier
+            self['lengthFormatIdentifier'] = length_format_identifier
 
         def encode(self):
             # addressAndLengthFormatIdentifier specifies length of address and
             # size
             # uppper nybble is byte length of size
             # lower nybble is byte length of address
-            length_format_identifier = ((_byte_size(self['memorySize']) << 4) +
-                                        _byte_size(self['memoryAddress']))
+            if self['addressFormatIdentifier'] is None:
+                self['addressFormatIdentifier'] = _byte_size(self['memoryAddress'])
+                
+            if self['lengthFormatIdentifier'] is None:
+                self['lengthFormatIdentifier'] = _byte_size(self['memorySize'])
+                
+            address_and_length_format_identifier = (self['addressFormatIdentifier'] & 0x0F)
+            address_and_length_format_identifier |= ((self['lengthFormatIdentifier'] << 4) & 0xF0)
 
             return ([self.SID,
                     self['dataFormatIdentifier'],
-                    length_format_identifier] +
-                    _to_bytes(self['memoryAddress']) +
-                    _to_bytes(self['memorySize']))
+                    address_and_length_format_identifier] +
+                    _to_bytes(self['memoryAddress'], self['addressFormatIdentifier'] - _byte_size(self['memoryAddress'])) +
+                    _to_bytes(self['memorySize'], self['lengthFormatIdentifier'] - _byte_size(self['memorySize'])))
 
         def decode(self, data):
             self._check_sid(data)
             self['dataFormatIdentifier'] = data[1]
-            size_bytes = data[2] >> 4
-            address_bytes = data[2] & 0x0F
+            self['lengthFormatIdentifier'] = (data[2] >> 4) & 0x0F
+            self['addressFormatIdentifier'] = data[2] & 0x0F
             self['memoryAddress'] = data[3: 3 + address_bytes]
             self['memorySize'] = data[3 + address_bytes:
                                       3 + address_bytes + size_bytes]
@@ -1207,13 +1220,17 @@ class RequestDownload:
     class Request(RequestTransfer.Request):
         def __init__(self, memory_address=0,
                      memory_size=0,
-                     data_format_identifier=0):
+                     data_format_identifier=0,
+                     address_format=None,
+                     length_format=None):
             super(RequestDownload.Request, self).__init__(
                 'RequestDownload',
                 RequestDownload.SID,
                 memory_address,
                 memory_size,
-                data_format_identifier)
+                data_format_identifier,
+                address_format_identifier=address_format,
+                length_format_identifier=length_format)
 
 
 class RequestUpload(RequestTransfer):
@@ -1228,13 +1245,17 @@ class RequestUpload(RequestTransfer):
     class Request(RequestTransfer.Request):
         def __init__(self, memory_address=0,
                      memory_size=0,
-                     data_format_identifier=0):
+                     data_format_identifier=0,
+                     address_format=None,
+                     length_format=None):
             super(RequestUpload.Request, self).__init__(
                 'RequestUpload',
                 RequestUpload.SID,
                 memory_address,
                 memory_size,
-                data_format_identifier)
+                data_format_identifier,
+                address_format_identifier=address_format,
+                length_format_identifier=length_format)
 
 
 class TransferData:
