@@ -69,7 +69,7 @@ class CantactDev:
             data_offset = 5
 
         # create the frame
-        frame = can.Frame(arb_id)
+        frame = can.Frame(arb_id, extended=ext_id)
         if remote:
             frame.frame_type = can.FrameType.RemoteFrame
 
