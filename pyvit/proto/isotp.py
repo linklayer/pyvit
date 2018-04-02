@@ -316,5 +316,5 @@ class IsotpInterface:
 
 
     @staticmethod
-    def get_base_frame_data(self):
+    def get_base_frame_data():
         return []

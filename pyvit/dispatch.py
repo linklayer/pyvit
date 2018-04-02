@@ -4,10 +4,8 @@ from multiprocessing import Queue, Process
 """The class uses two processes (_send_process e _recv_process) in order to transmit and receive
 The first one transmits evrything from queue _tx_queue
 The second one puts evrything received in all the queues present in the list _rx_queues
-
 So in order to transmit a frame we have to add it to the queue _tx_queue with method send
 In order to receive we have to read from our queue added trought method add_receiver
-
 REMEMBER: start the dispatcher with method start()"""
 
 
