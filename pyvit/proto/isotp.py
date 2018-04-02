@@ -10,13 +10,14 @@ class IsotpInterface:
 
     # From standard 15765-3 default padding value should be 55
     # TODO: check in standard 14229-3:2012 or later reviews
-    def __init__(self, dispatcher, tx_arb_id, rx_arb_id, padding=55):
+    def __init__(self, dispatcher, tx_arb_id, rx_arb_id, padding=55, extended_id=False):
         self._dispatcher = dispatcher
         self.tx_arb_id = tx_arb_id
         self.rx_arb_id = rx_arb_id
         self.padding_value = padding
         self._recv_queue = Queue()
         self.block_size_counter = 0
+        self.extended_id = extended_id
 
         self._dispatcher.add_receiver(self._recv_queue)
 
@@ -98,7 +99,8 @@ class IsotpInterface:
             # send a flow control frame
             fc = can.Frame(self.tx_arb_id, data=[0x30,
                                                  self.block_size,
-                                                 self.st_min])
+                                                 self.st_min],
+                                 frame.is_extended_id)
             self._dispatcher.send(fc)
             self.block_size_counter = self.block_size
 
@@ -146,7 +148,8 @@ class IsotpInterface:
                 # need to send flow control
                 fc = can.Frame(self.tx_arb_id, data=[0x30,
                                                      self.block_size,
-                                                     self.st_min])
+                                                     self.st_min],
+                                 frame.is_extended_id)
                 self._dispatcher.send(fc)
 
                 # reset block size counter
@@ -197,7 +200,7 @@ class IsotpInterface:
         if len(data) < 8:
             # message is less than 8 bytes, use single frame
 
-            sf = can.Frame(self.tx_arb_id)
+            sf = can.Frame(self.tx_arb_id, self.extended_id)
 
             # first byte is data length, remainder is data
             sf.data = self._pad_data([len(data)] + data)
@@ -210,7 +213,7 @@ class IsotpInterface:
             # message must be composed of FF and CF
 
             # first frame
-            ff = can.Frame(self.tx_arb_id)
+            ff = can.Frame(self.tx_arb_id, self.extended_id)
 
             frame_data = []
             # FF pci type and msb of length
@@ -257,7 +260,7 @@ class IsotpInterface:
                     time_to_wait = (fc_stmin-0xF0)/1000000.0
                     time.sleep(time_to_wait)
 
-                cf = can.Frame(self.tx_arb_id)
+                cf = can.Frame(self.tx_arb_id, self.extended_id)
                 data_bytes_in_msg = min(len(data) - bytes_sent, 7)
 
                 frame_data = []

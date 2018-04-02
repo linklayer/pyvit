@@ -24,7 +24,7 @@ def _to_bytes(value, padding=0):
     while value > 0:
         res = [value & 0xFF] + res
         value = value >> 8
-        
+
     # add '0' padding to the front of the list if specified
     while padding > 0:
         res = [0x00] + res
@@ -377,7 +377,7 @@ class CommunicationControl:
 class TesterPresent:
     """ TesterPresent service """
     SID = 0x3E
-    
+
     ZeroSubFunction = UDSParameter('ZeroSubFunction', {
         'requestPosRspMsg': 0x00,
         'suppressPosRspMsg': 0x80,
@@ -1185,10 +1185,10 @@ class RequestTransfer:
             # lower nybble is byte length of address
             if self['addressFormatIdentifier'] is None:
                 self['addressFormatIdentifier'] = _byte_size(self['memoryAddress'])
-                
+
             if self['lengthFormatIdentifier'] is None:
                 self['lengthFormatIdentifier'] = _byte_size(self['memorySize'])
-                
+
             address_and_length_format_identifier = (self['addressFormatIdentifier'] & 0x0F)
             address_and_length_format_identifier |= ((self['lengthFormatIdentifier'] << 4) & 0xF0)
 
@@ -1359,8 +1359,10 @@ class UDSInterface(IsotpInterface):
         RequestTransferExit.SID: RequestTransferExit,
         }
 
-    def __init__(self, dispatcher, tx_arb_id=0x7E0, rx_arb_id=0x7E8):
-        super().__init__(dispatcher, tx_arb_id, rx_arb_id)
+    def __init__(self, dispatcher, tx_arb_id=0x7E0, rx_arb_id=0x7E8, extended_id = False):
+        # I have to deal with an extended id either if was explicitly specified or if I have actual tx/rx ids which are bigger than 7FF
+        self._extended_id = extended_id or tx_arb_id > 0x7FF or rx_arb_id > 0X7FF
+        super().__init__(dispatcher, tx_arb_id, rx_arb_id, self._extended_id)
 
     def request(self, service, timeout=0.5):
         self.send(service.encode())
