@@ -10,7 +10,10 @@ class IsotpInterface:
 
     # From standard 15765-3 default padding value should be 55
     # TODO: check in standard 14229-3:2012 or later reviews
-    def __init__(self, dispatcher, tx_arb_id, rx_arb_id, padding=55, extended_id=False):
+    def __init__(self, dispatcher, tx_arb_id, rx_arb_id = False, padding=55, extended_id=False, rx_filter = True):
+        if rx_arb_id == False and rx_filter == True:
+            raise ValueError('invalid rx_arb_id to filter on, either disable rx_filter or provide a valid rx_arb_id')
+
         self._dispatcher = dispatcher
         self.tx_arb_id = tx_arb_id
         self.rx_arb_id = rx_arb_id
@@ -18,6 +21,8 @@ class IsotpInterface:
         self._recv_queue = Queue()
         self.block_size_counter = 0
         self.extended_id = extended_id
+        self.rx_filter = rx_filter
+        self._last_arb_id = 0
 
         self._dispatcher.add_receiver(self._recv_queue)
 
@@ -41,7 +46,8 @@ class IsotpInterface:
 
     def _set_filter(self):
         if (hasattr(self._dispatcher._device, "set_filter_id") and
-                hasattr(self._dispatcher._device, "set_filter_mask")):
+                hasattr(self._dispatcher._device, "set_filter_mask") and
+                self.rx_filter):
             self._dispatcher._device.set_filter_id(self.rx_arb_id)
             self._dispatcher._device.set_filter_mask(0x7FF)
 
@@ -100,7 +106,7 @@ class IsotpInterface:
             fc = can.Frame(self.tx_arb_id, data=[0x30,
                                                  self.block_size,
                                                  self.st_min],
-                                 frame.is_extended_id)
+                                 extended = frame.is_extended_id)
             self._dispatcher.send(fc)
             self.block_size_counter = self.block_size
 
@@ -140,7 +146,8 @@ class IsotpInterface:
             pass
 
         else:
-            raise ValueError('invalid PCItype parameter: 0x%X' % pci_type)
+            # Not an IOSTP conform frame, return None so we wail for another
+            return None
 
         if self.block_size_counter > 0:
             self.block_size_counter -= 1
@@ -149,7 +156,7 @@ class IsotpInterface:
                 fc = can.Frame(self.tx_arb_id, data=[0x30,
                                                      self.block_size,
                                                      self.st_min],
-                                 frame.is_extended_id)
+                                 extended = frame.is_extended_id)
                 self._dispatcher.send(fc)
 
                 # reset block size counter
@@ -178,9 +185,10 @@ class IsotpInterface:
             if rx_frame is None:
                 return None
 
-            if rx_frame.arb_id == self.rx_arb_id:
+            if rx_frame.arb_id == self.rx_arb_id or not self.rx_filter:
                 if self.debug:
                     print(rx_frame)
+                self._last_arb_id = rx_frame.arb_id
                 data = self.parse_frame(rx_frame)
 
             # check timeout, since we may be receiving messages that do not
@@ -190,6 +198,9 @@ class IsotpInterface:
 
         self._unset_filter()
         return data
+
+    def last_arb_id(self):
+        return self._last_arb_id
 
     def send(self, data):
         if len(data) > 4095:
