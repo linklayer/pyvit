@@ -8,7 +8,9 @@ from .. import can
 class IsotpInterface:
     debug = False
 
-    def __init__(self, dispatcher, tx_arb_id, rx_arb_id, padding=0):
+    # From standard 15765-3 default padding value should be 55
+    # TODO: check in standard 14229-3:2012 or later reviews
+    def __init__(self, dispatcher, tx_arb_id, rx_arb_id, padding=55):
         self._dispatcher = dispatcher
         self.tx_arb_id = tx_arb_id
         self.rx_arb_id = rx_arb_id
