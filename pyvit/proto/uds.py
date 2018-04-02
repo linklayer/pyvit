@@ -131,6 +131,19 @@ NegativeResponse = UDSParameter('NegativeResponse', {
 class NegativeResponseException(Exception):
     nrc_code = None
 
+    @staticmethod
+    def factory(nrc_data):
+        """
+        For certain nrc_codes we have specific exception defined, this is a factory pattern which
+        instantiate the right exception class depending of the nrc_code of the negative response
+        :param nrc_data:
+        :return:
+        """
+        if nrc_data[2] == NegativeResponse.responsePending:
+            return ResponsePendingException(nrc_data)
+        else:
+            return NegativeResponseException(nrc_data)
+
     def __init__(self, nrc_data):
         self.sid = nrc_data[1]
         self.nrc_code = nrc_data[2]
@@ -139,6 +152,17 @@ class NegativeResponseException(Exception):
         return 'NRC: SID = 0x%X: %s' % (self.sid,
                                         NegativeResponse.to_str(self.nrc_code))
 
+class ResponsePendingException(NegativeResponseException):
+    """
+    This negative response type says to the client that the server is still computing the response, just wait more
+    """
+    timeout = 0
+
+    def __init__(self, nrc_data):
+        super().__init__(nrc_data)
+        # with these kind of negative response the server request the P2extende timeout to wait for the pendind response, see ISO 14229-1:2013
+        # the maximum value for this parameter is 5000ms (5s), usually the exact one is comunicated in the response of the diagnosticSessionControl request
+        self.timeout = 5
 
 class TimeoutException(Exception):
     pass
@@ -174,13 +198,13 @@ class GenericResponse(dict):
     def _check_nrc(self, data):
         """ Generic function for checking received data is valid. If data
         is not received, a timeout is raised. If an negative response was
-        received an approproate exception is raised """
+        received an appropriate exception is raised """
 
         if data is None:
             raise TimeoutException("No data received")
 
         if data[0] == 0x7F:
-            raise NegativeResponseException(data)
+            raise NegativeResponseException.factory(data)
         elif data[0] != self.SID + 0x40:
             raise ValueError('Invalid SID for service'
                              '(got 0x%X, expected 0x%X)' %
@@ -757,7 +781,7 @@ class ReadDataByIdentifier:
                 ReadDataByIdentifier.SID)
             if data_identifier < 0 or data_identifier > 0xFFFF:
                 raise ValueError('Invalid dataIdentifier, '
-                                 'must be > 0 and < 0xFF')
+                                 'must be > 0 and < 0xFFFF')
             self['dataIdentifier'] = data_identifier
 
         def encode(self):
@@ -1326,7 +1350,7 @@ class RequestTransferExit:
             self['transferRequestParameterRecord'] = data[1:]
 
 
-class UDSInterface(IsotpInterface):
+class UDSInterface:
     SERVICES = {
         DiagnosticSessionControl.SID: DiagnosticSessionControl,
         ECUReset.SID: ECUReset,
@@ -1389,7 +1413,7 @@ class UDSInterface(IsotpInterface):
 
         # Data is already filtered from the PCI informations by the IsotpInterface.recv() method
         if data[0] == 0x7F:
-            e = NegativeResponseException(data)
+            e = NegativeResponseException.factory(data)
             if e.nrc_code != NegativeResponse.responsePending:
                 raise e
             else:
