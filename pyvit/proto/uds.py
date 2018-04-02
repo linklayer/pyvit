@@ -1,8 +1,10 @@
 import operator
+import time
 
 from math import log
 
-from pyvit.proto.isotp import IsotpInterface
+from pyvit.proto.isotpAddressing import N_TAtype, IsotpNormalAddressing, IsotpNormalFixedAddressing
+from pyvit.dispatch import Dispatcher
 
 
 def _byte_size(value):
@@ -773,6 +775,7 @@ class ReadDataByIdentifier:
             self._check_nrc(data)
             self['dataIdentifier'] = (data[1] << 8) + data[2]
             self['dataRecord'] = data[3:]
+            self['dataRecordASCII'] = ''.join(chr(i) for i in self['dataRecord'])
 
     class Request(GenericRequest):
         def __init__(self, data_identifier=0):
@@ -862,7 +865,7 @@ class ReadScalingDataByIdentifier:
                 ReadScalingDataByIdentifier.SID)
             if data_identifier < 0 or data_identifier > 0xFFFF:
                 raise ValueError('Invalid dataIdentifier, '
-                                 'must be > 0 and < 0xFF')
+                                 'must be > 0 and < 0xFFFF')
             self['dataIdentifier'] = data_identifier
 
         def encode(self):
@@ -962,7 +965,7 @@ class WriteDataByIdentifier:
 
             if data_identifier < 0 or data_identifier > 0xFFFF:
                 raise ValueError('Invalid dataIdentifier, '
-                                 'must be > 0 and < 0xFF')
+                                 'must be > 0 and < 0xFFFF')
             self['dataIdentifier'] = data_identifier
             self['dataRecord'] = data_record
 
@@ -1383,18 +1386,29 @@ class UDSInterface:
         RequestTransferExit.SID: RequestTransferExit,
         }
 
-    def __init__(self, dispatcher, tx_arb_id=0x7E0, rx_arb_id=0x7E8, extended_id = False):
-        # I have to deal with an extended id either if was explicitly specified or if I have actual tx/rx ids which are bigger than 7FF
-        self._extended_id = extended_id or tx_arb_id > 0x7FF or rx_arb_id > 0X7FF
-        super().__init__(dispatcher, tx_arb_id, rx_arb_id, self._extended_id)
+    def __init__(self, dispatcher=False, tx_arb_id=0x7E0, rx_arb_id=0x7E8, extended_id = False):
+        if not isinstance(dispatcher, Dispatcher):
+            # no dispatcher passed, I can't set a transport layer. These will be set from who is using
+            pass
+        elif extended_id:
+            self.transport_layer = IsotpNormalFixedAddressing(dispatcher)
+            self.transport_layer.tx_arb_id = tx_arb_id
+            self.transport_layer.rx_arb_id = rx_arb_id
+        else:
+            self.transport_layer = IsotpNormalAddressing(dispatcher, tx_arb_id)
+            self.transport_layer.rx_arb_id = rx_arb_id
 
     def request(self, service, timeout=0.5):
-        self.send(service.encode())
-        resp = self.decode_response(timeout=timeout)
-        return resp
+        self.transport_layer.send(service.encode())
+        if self.transport_layer.N_TAtype == N_TAtype.physical:
+            return self.decode_response(timeout=timeout)
+        elif self.transport_layer.N_TAtype == N_TAtype.functional:
+            return self.decode_responses(timeout)
+        else:
+            raise Exception("Unknown N_TAtype")
 
     def decode_request(self, timeout=0.5):
-        data = self.recv(timeout=timeout)
+        data = self.transport_layer.recv(timeout=timeout)
         if data is None:
             return None
 
@@ -1407,18 +1421,14 @@ class UDSInterface:
         return req
 
     def decode_response(self, timeout=0.5):
-        data = self.recv(timeout=timeout)
+        data = self.transport_layer.recv(timeout=timeout)
         if data is None:
             return None
 
-        # Data is already filtered from the PCI informations by the IsotpInterface.recv() method
+        # Data is already filtered from the PCI information by the transport_layer.recv() method
         if data[0] == 0x7F:
             e = NegativeResponseException.factory(data)
-            if e.nrc_code != NegativeResponse.responsePending:
-                raise e
-            else:
-                # response pending, return none for now
-                return None
+            raise e
         try:
             resp = self.SERVICES[data[0] - 0x40].Response()
             resp.decode(data)
@@ -1426,3 +1436,22 @@ class UDSInterface:
             resp = GenericResponse('Unknown Service', data[0])
             resp['data'] = data[1:]
         return resp
+
+    def decode_responses(self,functional_timeout = 0.05):
+        """
+        In some cases, for example when using functional addressing, we may have more responses from different ECUs
+        :param functional_timeout:
+        :return:
+        """
+
+        resps = {}
+        start = time.time()
+        while time.time() - start <= functional_timeout:
+            try:
+                resp = self.decode_response()
+            except ResponsePendingException as e:
+                # If I get a response pending exception means that I have a new timeout to consider
+                functional_timeout = e.timeout
+            if resp is not None:
+                resps[self.transport_layer.last_arb_id] = resp
+        return resps

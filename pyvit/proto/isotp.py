@@ -1,6 +1,7 @@
 import time
 from multiprocessing import Queue
 from queue import Empty
+from abc import abstractmethod
 
 from .. import can
 
@@ -10,9 +11,7 @@ class IsotpInterface:
 
     # From standard 15765-3 default padding value should be 55
     # TODO: check in standard 14229-3:2012 or later reviews
-    def __init__(self, dispatcher, tx_arb_id, rx_arb_id = False, padding=55, extended_id=False, rx_filter = True):
-        if rx_arb_id == False and rx_filter == True:
-            raise ValueError('invalid rx_arb_id to filter on, either disable rx_filter or provide a valid rx_arb_id')
+    def __init__(self, dispatcher, tx_arb_id, rx_arb_id = False, padding=55, extended_id=False, rx_filter_func=False):
 
         self._dispatcher = dispatcher
         self.tx_arb_id = tx_arb_id
@@ -21,8 +20,11 @@ class IsotpInterface:
         self._recv_queue = Queue()
         self.block_size_counter = 0
         self.extended_id = extended_id
-        self.rx_filter = rx_filter
-        self._last_arb_id = 0
+        self._rx_filter_func = rx_filter_func
+        self.last_arb_id = None
+
+        # depending of the addressing type the data len limit for using a single frame may change, in most cases is 7
+        self.sf_data_len_limit = 7
 
         self._dispatcher.add_receiver(self._recv_queue)
 
@@ -46,8 +48,7 @@ class IsotpInterface:
 
     def _set_filter(self):
         if (hasattr(self._dispatcher._device, "set_filter_id") and
-                hasattr(self._dispatcher._device, "set_filter_mask") and
-                self.rx_filter):
+                hasattr(self._dispatcher._device, "set_filter_mask")):
             self._dispatcher._device.set_filter_id(self.rx_arb_id)
             self._dispatcher._device.set_filter_mask(0x7FF)
 
@@ -62,6 +63,9 @@ class IsotpInterface:
         self.data_len = 0
 
     def parse_frame(self, frame):
+
+        # save frame arbitration id
+        self.last_arb_id = frame.arb_id
         # pci type is upper nybble of first byte
         pci_type = (frame.data[0] & 0xF0) >> 4
 
@@ -73,8 +77,8 @@ class IsotpInterface:
             # data length is lower nybble for first byte
             sf_dl = frame.data[0] & 0xF
 
-            # check that the data length is valid for a SF
-            if not (sf_dl > 0 and sf_dl < 8):
+            # check that the data length is valid for a SF, the max length can change depending on addressing type
+            if not (sf_dl > 0 and sf_dl <= self.sf_data_len_limit):
                 raise ValueError('invalid SF_DL parameter for single frame')
 
             self.data_len = sf_dl
@@ -111,10 +115,10 @@ class IsotpInterface:
             self.block_size_counter = self.block_size
 
         elif pci_type == 2:
-            # consecutive frame
+            # consecutive frame, data_len should be already specified by previous FF frame
 
             # check that a FF has been sent
-            if self.data_len == 0:
+            if not hasattr(self, 'data_len') or self.data_len == 0:
                 raise ValueError('consecutive frame before first frame')
 
             # frame's sequence number is lower nybble of byte 0
@@ -146,7 +150,7 @@ class IsotpInterface:
             pass
 
         else:
-            # Not an IOSTP conform frame, return None so we wail for another
+            # Not an ISOTP conform frame, return None so we wail for another
             return None
 
         if self.block_size_counter > 0:
@@ -163,6 +167,7 @@ class IsotpInterface:
                 self.block_size_counter = self.block_size
 
     def recv(self, timeout=1, bs=0, st_min=0):
+        self.last_arb_id = None
         data = None
         start = time.time()
 
@@ -180,27 +185,26 @@ class IsotpInterface:
             try:
                 rx_frame = self._recv_queue.get(timeout=timeout)
             except Empty:
+                if self.debug:
+                    print ('timeout NO FRAME')
                 return None
 
             if rx_frame is None:
                 return None
 
-            if rx_frame.arb_id == self.rx_arb_id or not self.rx_filter:
+            if self.filter_received_frame(rx_frame):
                 if self.debug:
                     print(rx_frame)
-                self._last_arb_id = rx_frame.arb_id
                 data = self.parse_frame(rx_frame)
-
             # check timeout, since we may be receiving messages that do not
             # have the required arb_id
             if time.time() - start > timeout:
+                if self.debug:
+                    print ('timeout ISOTP')
                 return None
 
         self._unset_filter()
         return data
-
-    def last_arb_id(self):
-        return self._last_arb_id
 
     def send(self, data):
         if len(data) > 4095:
@@ -208,13 +212,16 @@ class IsotpInterface:
 
         self._set_filter()
 
-        if len(data) < 8:
-            # message is less than 8 bytes, use single frame
+        if len(data) <= self.sf_data_len_limit:
+            # message is less than sf_data_len_limit bytes, use single frame
 
-            sf = can.Frame(self.tx_arb_id, self.extended_id)
+            sf = can.Frame(self.tx_arb_id, extended = self.extended_id)
 
+            frame_data = self.get_base_frame_data()
             # first byte is data length, remainder is data
-            sf.data = self._pad_data([len(data)] + data)
+            frame_data.append(len(data))
+            frame_data = frame_data + data
+            sf.data = self._pad_data(frame_data)
 
             if self.debug:
                 print(sf)
@@ -224,9 +231,9 @@ class IsotpInterface:
             # message must be composed of FF and CF
 
             # first frame
-            ff = can.Frame(self.tx_arb_id, self.extended_id)
+            ff = can.Frame(self.tx_arb_id, extended = self.extended_id)
 
-            frame_data = []
+            frame_data = self.get_base_frame_data()
             # FF pci type and msb of length
             frame_data.append(0x10 + (len(data) >> 8))
             # lower byte of data
@@ -252,7 +259,7 @@ class IsotpInterface:
                         # must wait for a flow control frame
                         while True:
                             rx_frame = self._recv_queue.get()
-                            if (rx_frame.arb_id == self.rx_arb_id and
+                            if (self.filter_received_frame(rx_frame) and
                                     rx_frame.data[0] == 0x30):
                                 if self.debug:
                                     print(rx_frame)
@@ -271,10 +278,10 @@ class IsotpInterface:
                     time_to_wait = (fc_stmin-0xF0)/1000000.0
                     time.sleep(time_to_wait)
 
-                cf = can.Frame(self.tx_arb_id, self.extended_id)
-                data_bytes_in_msg = min(len(data) - bytes_sent, 7)
+                cf = can.Frame(self.tx_arb_id, extended = self.extended_id)
+                data_bytes_in_msg = min(len(data) - bytes_sent, self.sf_data_len_limit)
 
-                frame_data = []
+                frame_data = self.get_base_frame_data()
                 frame_data.append(0x20 + sequence_number)
                 frame_data = (frame_data +
                               data[bytes_sent:bytes_sent+data_bytes_in_msg])
@@ -292,3 +299,22 @@ class IsotpInterface:
                 bytes_sent = bytes_sent + data_bytes_in_msg
 
         self._unset_filter()
+
+    def filter_received_frame(self,rx_frame):
+        """
+        function establish if received frame has to be considered or not
+        further implementation is demanded to addressing classes
+        :param rx_frame:
+        :return: true if frame has to be accepted
+        """
+        if not self._rx_filter_func or not callable(self._rx_filter_func):
+            if self.rx_arb_id:
+                return rx_frame.arb_id == self.rx_arb_id
+            else:
+                return True
+        else:
+            return self._rx_filter_func(rx_frame)
+
+
+    def get_base_frame_data(self):
+        return []
