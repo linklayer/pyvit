@@ -120,7 +120,7 @@ class IsotpMixedAddressing (IsotpAddressing):
     def parse_frame(self, frame):
         # In case of mixed addressing first byte of data is the remote address
         frame.data.pop(0)
-        return super(IsotpAddressing, self).parse_frame(frame)
+        return super(IsotpMixedAddressing, self).parse_frame(frame)
 
     def get_base_frame_data(self):
         # In case of mixed addressing first byte of data is the remote address
@@ -145,7 +145,7 @@ class IsotpExtendedAddressing (IsotpAddressing):
     def parse_frame(self, frame):
         # In case of extended addressing first byte of data is the target address
         frame.data.pop(0)
-        return super(IsotpAddressing, self).parse_frame(frame)
+        return super(IsotpExtendedAddressing, self).parse_frame(frame)
 
     def get_base_frame_data(self):
         # In case of extended addressing first byte of data is the target address
