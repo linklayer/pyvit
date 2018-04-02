@@ -37,6 +37,9 @@ class LogPlayer:
         if line == '':
             # out of frames
             return None
+        if line in ['\n','\n\r']:
+            # seams to be an empty line, just go for next one
+            return self.recv()
 
         # convert line to frame
         frame = self._log_to_frame(line)

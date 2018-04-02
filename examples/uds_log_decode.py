@@ -6,7 +6,7 @@ from pyvit.proto.isotp import IsotpInterface
 from pyvit.proto.uds import *
 
 
-def read_file(filename, req_arb_id, resp_arb_id):
+def read_file(filename, req_arb_id, resp_arb_id, resp_timeout = 0.5):
     lp = LogPlayer(filename, realtime=False)
     disp = Dispatcher(lp)
     uds_req = UDSInterface(disp, 0, req_arb_id)
@@ -25,11 +25,21 @@ def read_file(filename, req_arb_id, resp_arb_id):
             resp = None
             # wait until we get a response
             # this will return None if there is a response pending
+            start = time.time()
             while resp is None:
-                resp = uds_resp.decode_response()
+                try:
+                    resp = uds_resp.decode_response()
+                except ResponsePendingException as e:
+                    # response pending, go for next
+                    resp = None
+                if time.time() - start > resp_timeout:
+                    break
             session.append(resp)
 
         except NegativeResponseException as e:
+            session.append(e)
+        except ValueError as e:
+            # sometimes other errors could be present in the log
             session.append(e)
 
     disp.stop()
@@ -52,15 +62,22 @@ for r in session:
     if isinstance(r, GenericRequest):
         print('\n[->] Request [%s / 0x%X]' % (r.name, r.SID))
         for k in r.keys():
-            print('\t%s: %s' % (k, pprint.pformat(r[k], indent=8,
-                                                  compact=True)))
+            if isinstance(r[k],list):
+                print('\t%s: %s' % (k,[hex(x) for x in r[k]]))
+            else:
+                print('\t%s: 0x%X' % (k, r[k]))
+
     elif isinstance(r, GenericResponse):
         print('[<-] Response [%s / 0x%X]' % (r.name, r.SID))
         for k in r.keys():
-            print('\t%s: %s' % (k, pprint.pformat(r[k], indent=8,
-                                                  compact=True)))
+            if isinstance(r[k],list):
+                print('\t%s: %s' % (k,[hex(x) for x in r[k]]))
+            else:
+                print('\t%s: %s' % (k, r[k]))
 
     elif isinstance(r, NegativeResponseException):
         print('\n[!!] %s' % r)
     elif r is None:
-        print('Unknown Service')
+        print('\n[??] Unknown Service: %s' % r)
+    else:
+        print('\n[!?] Strange stuff: %s' % r)
