@@ -5,18 +5,22 @@ from .. import can
 
 class CantactDev:
     def __init__(self, port):
+        # opening the serial connection with the device in attribute ser
         self.ser = serial.Serial(port)
 
     def _dev_write(self, string):
         self.ser.write(string.encode())
 
     def start(self):
+        # activate CANtact standard operations
         self._dev_write('O\r')
 
     def stop(self):
+        # terminates CANtact standard operations
         self._dev_write('C\r')
 
     def set_bitrate(self, bitrate):
+        # set the CAN bus bitrate
         if bitrate == 10000:
             self._dev_write('S0\r')
         elif bitrate == 20000:
@@ -35,6 +39,12 @@ class CantactDev:
             self._dev_write('S7\r')
         elif bitrate == 1000000:
             self._dev_write('S8\r')
+        elif bitrate == 83000:
+            self._dev_write('S9\r')
+        elif bitrate == 800000:
+            self._dev_write('Sa\r')
+        elif bitrate == 0:
+            self._dev_write('Su\r')
         else:
             raise ValueError("Bitrate not supported")
 
@@ -57,6 +67,9 @@ class CantactDev:
         elif rx_str[0] == 'r':
             ext_id = False
             remote = True
+        else:
+            # If I read somthing meaningless read next packet
+            return self.recv()
 
         # parse the id and DLC
         if ext_id:
@@ -69,7 +82,7 @@ class CantactDev:
             data_offset = 5
 
         # create the frame
-        frame = can.Frame(arb_id)
+        frame = can.Frame(arb_id, extended=ext_id)
         if remote:
             frame.frame_type = can.FrameType.RemoteFrame
 
