@@ -122,6 +122,7 @@ class IsotpMixedAddressing (IsotpAddressing):
         frame.data.pop(0)
         return super(IsotpMixedAddressing, self).parse_frame(frame)
 
+    @staticmethod
     def get_base_frame_data(self):
         # In case of mixed addressing first byte of data is the remote address
         return [self.N_AE]
@@ -147,6 +148,7 @@ class IsotpExtendedAddressing (IsotpAddressing):
         frame.data.pop(0)
         return super(IsotpExtendedAddressing, self).parse_frame(frame)
 
+    @staticmethod
     def get_base_frame_data(self):
         # In case of extended addressing first byte of data is the target address
         return [self.N_TA]
