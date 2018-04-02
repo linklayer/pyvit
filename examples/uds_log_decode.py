@@ -1,8 +1,5 @@
 import sys
-import pprint
 from pyvit.hw.logplayer import LogPlayer
-from pyvit.dispatch import Dispatcher
-from pyvit.proto.isotp import IsotpInterface
 from pyvit.proto.uds import *
 
 

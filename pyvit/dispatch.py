@@ -12,6 +12,7 @@ In order to receive we have to read from our queue added trought method add_rece
 REMEMBER: start the dispatcher with method start()
 """
 
+
 class Dispatcher:
     def __init__(self, device):
         # ensure the device has the required method functions

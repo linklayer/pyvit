@@ -1,7 +1,6 @@
 import time
 from multiprocessing import Queue
 from queue import Empty
-from abc import abstractmethod
 
 from .. import can
 
