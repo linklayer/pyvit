@@ -8,6 +8,8 @@ The second one puts evrything received in all the queues present in the list _rx
 
 So in order to transmit a frame we have to add it to the queue _tx_queue with method send
 In order to receive we have to read from our queue added trought method add_receiver
+
+REMEMBER: start the dispatcher with method start()
 """
 
 class Dispatcher:
@@ -24,7 +26,7 @@ class Dispatcher:
 
     def add_receiver(self, rx_queue):
         if self.is_running:
-            # in teory could be removed: https://github.com/GuillaumeFege/pyvit/commit/1711f00a0124c6b00549d91f38ec31e9389711fd
+            # in theory could be removed: https://github.com/GuillaumeFege/pyvit/commit/1711f00a0124c6b00549d91f38ec31e9389711fd
             raise Exception('dispatcher must be stopped to add receiver')
 
         # ensure the receive queue is a queue
@@ -38,7 +40,7 @@ class Dispatcher:
 
     def remove_receiver(self, rx_queue):
         if self.is_runnning():
-            # in teory could be removed: https://github.com/GuillaumeFege/pyvit/commit/1711f00a0124c6b00549d91f38ec31e9389711fd
+            # in theory could be removed: https://github.com/GuillaumeFege/pyvit/commit/1711f00a0124c6b00549d91f38ec31e9389711fd
             raise Exception('dispatcher must be stopped to remove receiver')
 
         # check the receive queue is in the dispatcher

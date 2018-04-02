@@ -96,7 +96,7 @@ class Frame(object):
         return len(self.data)
 
     def __str__(self):
-        return ('ID=0x%03X, DLC=%d, Data=[%s]' %
+        return ('ID=0x%X, DLC=%d, Data=[%s]' %
                 (self.arb_id, self.dlc, ', '.join(('%02X' % b)
                                                   for b in self.data)))
 
