@@ -1366,11 +1366,8 @@ class UDSInterface(IsotpInterface):
 
     def request(self, service, timeout=0.5):
         self.send(service.encode())
-        data = self.recv(timeout=timeout)
-        if data is None:
-            return None
-            
-        return service.decode(data)
+        resp = self.decode_response(timeout=timeout)
+        return resp
 
     def decode_request(self, timeout=0.5):
         data = self.recv(timeout=timeout)
@@ -1390,6 +1387,7 @@ class UDSInterface(IsotpInterface):
         if data is None:
             return None
 
+        # Data is already filtered from the PCI informations by the IsotpInterface.recv() method
         if data[0] == 0x7F:
             e = NegativeResponseException(data)
             if e.nrc_code != NegativeResponse.responsePending:
