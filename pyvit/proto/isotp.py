@@ -10,7 +10,7 @@ class IsotpInterface:
 
     # From standard 15765-3 default padding value should be 55
     # TODO: check in standard 14229-3:2012 or later reviews
-    def __init__(self, dispatcher, tx_arb_id, rx_arb_id = False, padding=55, extended_id=False, rx_filter_func=False):
+    def __init__(self, dispatcher, tx_arb_id, rx_arb_id = False, padding=0x55, extended_id=False, rx_filter_func=False):
 
         self._dispatcher = dispatcher
         self.tx_arb_id = tx_arb_id
@@ -47,7 +47,8 @@ class IsotpInterface:
 
     def _set_filter(self):
         if (hasattr(self._dispatcher._device, "set_filter_id") and
-                hasattr(self._dispatcher._device, "set_filter_mask")):
+                hasattr(self._dispatcher._device, "set_filter_mask") and
+                self.rx_arb_id):
             self._dispatcher._device.set_filter_id(self.rx_arb_id)
             self._dispatcher._device.set_filter_mask(0x7FF)
 
