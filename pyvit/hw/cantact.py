@@ -4,6 +4,8 @@ from .. import can
 
 
 class CantactDev:
+    debug = False
+
     def __init__(self, port):
         # opening the serial connection with the device in attribute ser
         self.ser = serial.Serial(port)
@@ -14,10 +16,14 @@ class CantactDev:
     def start(self):
         # activate CANtact standard operations
         self._dev_write('O\r')
+        if self.debug:
+            print("CantactDev started")
 
     def stop(self):
         # terminates CANtact standard operations
         self._dev_write('C\r')
+        if self.debug:
+            print("CantactDev stopped")
 
     def set_bitrate(self, bitrate):
         # set the CAN bus bitrate
@@ -51,6 +57,8 @@ class CantactDev:
     def recv(self):
         # receive characters until a newline (\r) is hit
         rx_str = ""
+        if self.debug:
+            print("CantactDev recv called")
         while rx_str == "" or rx_str[-1] != '\r':
             rx_str = rx_str + self.ser.read().decode('ascii')
 
@@ -92,6 +100,8 @@ class CantactDev:
             data.append(int(rx_str[data_offset+i*2:(data_offset+2)+i*2], 16))
             frame.data = data
 
+        if self.debug:
+            print("RECV: %s" % frame)
         return frame
 
     def send(self, frame):
@@ -110,6 +120,8 @@ class CantactDev:
 
         # send it
         self._dev_write(tx_str)
+        if self.debug:
+            print("SENT: %s" % frame)
 
     def set_filter_id(self, filter_id):
         # set CAN filter identifier

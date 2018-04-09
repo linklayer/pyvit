@@ -61,7 +61,7 @@ class Frame(object):
             self._arb_id = value
         else:
             # otherwise, id is not valid
-            raise ValueError('Arbitration ID out of range')
+            raise ValueError('Arbitration ID out of range', "0x%x" % value)
 
     @property
     def data(self):
