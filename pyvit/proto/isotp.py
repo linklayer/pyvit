@@ -8,8 +8,7 @@ from .. import can
 class IsotpInterface:
     debug = False
 
-    # From standard 15765-3 default padding value should be 55
-    # TODO: check in standard 14229-3:2012 or later reviews
+    # From standard 15765-3 default padding value should be 0x55
     def __init__(self, dispatcher, tx_arb_id, rx_arb_id = False, padding=0x55, extended_id=False, rx_filter_func=False):
 
         self._dispatcher = dispatcher
@@ -19,7 +18,7 @@ class IsotpInterface:
         self._recv_queue = Queue()
         self.block_size_counter = 0
         self.extended_id = extended_id
-        self._rx_filter_func = rx_filter_func
+        self.rx_filter_func = rx_filter_func
         self.last_arb_id = None
 
         # depending of the addressing type the data len limit for using a single frame may change, in most cases is 7
@@ -107,12 +106,7 @@ class IsotpInterface:
             self.sequence_number = self.sequence_number + 1
 
             # send a flow control frame
-            fc = can.Frame(self.tx_arb_id, data=[0x30,
-                                                 self.block_size,
-                                                 self.st_min],
-                                 extended = frame.is_extended_id)
-            self._dispatcher.send(fc)
-            self.block_size_counter = self.block_size
+            self._send_control_frame(frame.is_extended_id)
 
         elif pci_type == 2:
             # consecutive frame, data_len should be already specified by previous FF frame
@@ -157,14 +151,7 @@ class IsotpInterface:
             self.block_size_counter -= 1
             if self.block_size_counter == 0:
                 # need to send flow control
-                fc = can.Frame(self.tx_arb_id, data=[0x30,
-                                                     self.block_size,
-                                                     self.st_min],
-                                 extended = frame.is_extended_id)
-                self._dispatcher.send(fc)
-
-                # reset block size counter
-                self.block_size_counter = self.block_size
+                self._send_control_frame(frame.is_extended_id)
 
     def recv(self, timeout=1, bs=0, st_min=0):
         self.last_arb_id = None
@@ -194,10 +181,10 @@ class IsotpInterface:
 
             if self.filter_received_frame(rx_frame):
                 if self.debug:
-                    print(rx_frame)
+                    print("ISOTP RECV: %s" % rx_frame)
                 data = self.parse_frame(rx_frame)
             # check timeout, since we may be receiving messages that do not
-            # have the required arb_id
+            # pass the receiving filter criterion
             if time.time() - start > timeout:
                 if self.debug:
                     print ('timeout ISOTP')
@@ -224,7 +211,7 @@ class IsotpInterface:
             sf.data = self._pad_data(frame_data)
 
             if self.debug:
-                print(sf)
+                print("ISOTP SEND: %s " % sf)
             self._dispatcher.send(sf)
 
         else:
@@ -243,7 +230,7 @@ class IsotpInterface:
 
             ff.data = self._pad_data(frame_data)
             if self.debug:
-                print(ff)
+                print("ISOTP SEND: %s " % ff)
             self._dispatcher.send(ff)
 
             bytes_sent = 6
@@ -257,8 +244,18 @@ class IsotpInterface:
                     fc_bs -= 1
                     if fc_bs == 0:
                         # must wait for a flow control frame
+                        # Just in case, theoretically, since we've already started comunicating, we should never go timeout
+                        timeout = 10
+                        start = time.time()
+
                         while True:
-                            rx_frame = self._recv_queue.get()
+                            try:
+                                rx_frame = self._recv_queue.get(timeout=timeout)
+                            except Empty:
+                                if self.debug:
+                                    print('timeout NO FRAME waiting CONTROL frame')
+                                raise TimeoutError("No control frame received")
+
                             if (self.filter_received_frame(rx_frame) and
                                     rx_frame.data[0] == 0x30):
                                 if self.debug:
@@ -267,6 +264,11 @@ class IsotpInterface:
                                 fc_bs = rx_frame.data[1]
                                 fc_stmin = rx_frame.data[2]
                                 break
+                            # check timeout, since we may be receiving messages that are not control frame
+                            if time.time() - start > timeout:
+                                if self.debug:
+                                    print('timeout ISOTP waiting CONTROL frame')
+                                raise TimeoutError("No control frame received")
 
                 # wait for fc_stmin ms/us
                 if fc_stmin < 0x80:
@@ -288,7 +290,7 @@ class IsotpInterface:
                 cf.data = self._pad_data(frame_data)
 
                 if self.debug:
-                    print(cf)
+                    print("ISOTP SEND: %s " % cf)
                 self._dispatcher.send(cf)
 
                 sequence_number = sequence_number + 1
@@ -300,6 +302,16 @@ class IsotpInterface:
 
         self._unset_filter()
 
+    def _send_control_frame(self, is_extended_id):
+        data = [0x30, self.block_size, self.st_min]
+        fc = can.Frame(self.tx_arb_id, data=self._pad_data(data),
+                       extended=is_extended_id)
+        if self.debug:
+            print("ISOTP Control Frame: %s" % fc)
+        self._dispatcher.send(fc)
+        # reset block size counter
+        self.block_size_counter = self.block_size
+
     def filter_received_frame(self,rx_frame):
         """
         function establish if received frame has to be considered or not
@@ -307,13 +319,16 @@ class IsotpInterface:
         :param rx_frame:
         :return: true if frame has to be accepted
         """
-        if not self._rx_filter_func or not callable(self._rx_filter_func):
-            if self.rx_arb_id:
-                return rx_frame.arb_id == self.rx_arb_id
-            else:
-                return True
+        let_frame_pass = False
+        if self.rx_arb_id:
+            let_frame_pass = rx_frame.arb_id == self.rx_arb_id
         else:
-            return self._rx_filter_func(rx_frame)
+            let_frame_pass = True
+
+        if not self.rx_filter_func or not callable(self.rx_filter_func):
+            return let_frame_pass
+        else:
+            return let_frame_pass and self.rx_filter_func(rx_frame)
 
 
     @staticmethod
