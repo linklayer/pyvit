@@ -4,6 +4,7 @@ from .. import can
 
 class LogPlayer:
     running = False
+    debug = False
 
     def __init__(self, log_filename, realtime=True):
         self.log_filename = log_filename
@@ -15,6 +16,7 @@ class LogPlayer:
         self.logfile = open(self.log_filename, 'r')
         self.start_timestamp = None
         self.running = True
+        self.linenumber = 0
 
     def __enter__(self):
         self.start()
@@ -28,12 +30,15 @@ class LogPlayer:
         self.stop()
 
     def send(self, data):
+        if self.debug:
+            print("DEV SEND: %s " % data)
         pass
 
     def recv(self):
         assert self.running, 'not running'
 
         line = self.logfile.readline()
+        self.linenumber = self.linenumber + 1
         if line == '':
             # out of frames
             return None
@@ -51,7 +56,8 @@ class LogPlayer:
         if self.realtime:
             time.sleep(max((self.start_timestamp - time.time() +
                             frame.timestamp), 0))
-
+        if self.debug:
+            print("DEV RECV: %s " % frame)
         return frame
 
     def recv_all(self):
@@ -68,8 +74,11 @@ class LogPlayer:
     def _log_to_frame(self, line):
         fields = line.split(' ')
 
-        arb_id = int(fields[2].split('#')[0], 16)
-        frame = can.Frame(arb_id)
+        arb_id_str = fields[2].split('#')[0]
+        arb_id = int(arb_id_str, 16)
+
+        extended_id = len(arb_id_str)>3
+        frame = can.Frame(arb_id,extended=extended_id)
 
         frame.timestamp = float(fields[0][1:-1])
 
@@ -81,3 +90,6 @@ class LogPlayer:
             frame.data.append(int(datastr[i*2:i*2+2], 16))
 
         return frame
+
+    def set_bitrate(self,value):
+        pass
