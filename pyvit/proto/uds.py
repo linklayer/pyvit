@@ -143,6 +143,8 @@ class NegativeResponseException(Exception):
         """
         if nrc_data[2] == NegativeResponse.responsePending:
             return ResponsePendingException(nrc_data)
+        elif nrc_data[2] == NegativeResponse.securityAccessDenied:
+            return SecurityAccessDeniedException(nrc_data)
         else:
             return NegativeResponseException(nrc_data)
 
@@ -165,6 +167,9 @@ class ResponsePendingException(NegativeResponseException):
         # with these kind of negative response the server request the P2extende timeout to wait for the pendind response, see ISO 14229-1:2013
         # the maximum value for this parameter is 5000ms (5s), usually the exact one is comunicated in the response of the diagnosticSessionControl request
         self.timeout = 5
+
+class SecurityAccessDeniedException(NegativeResponseException):
+    pass
 
 class TimeoutException(Exception):
     pass
@@ -1386,7 +1391,8 @@ class UDSInterface:
         RequestTransferExit.SID: RequestTransferExit,
         }
 
-    def __init__(self, dispatcher=False, tx_arb_id=0x7E0, rx_arb_id=0x7E8, extended_id = False):
+    def __init__(self, dispatcher=False, tx_arb_id=0x7E0, rx_arb_id=0x7E8, extended_id = False, functional_timeout = 2):
+        self.functional_timeout = functional_timeout
         if not isinstance(dispatcher, Dispatcher):
             # no dispatcher passed, I can't set a transport layer. These will be set from who is using
             pass
@@ -1427,8 +1433,7 @@ class UDSInterface:
 
         # Data is already filtered from the PCI information by the transport_layer.recv() method
         if data[0] == 0x7F:
-            e = NegativeResponseException.factory(data)
-            raise e
+            raise NegativeResponseException.factory(data)
         try:
             resp = self.SERVICES[data[0] - 0x40].Response()
             resp.decode(data)
@@ -1437,7 +1442,7 @@ class UDSInterface:
             resp['data'] = data[1:]
         return resp
 
-    def decode_responses(self,functional_timeout = 0.05):
+    def decode_responses(self,timeout):
         """
         In some cases, for example when using functional addressing, we may have more responses from different ECUs
         :param functional_timeout:
@@ -1446,9 +1451,9 @@ class UDSInterface:
 
         resps = {}
         start = time.time()
-        while time.time() - start <= functional_timeout:
+        while time.time() - start <= self.functional_timeout:
             try:
-                resp = self.decode_response()
+                resp = self.decode_response(timeout)
             except ResponsePendingException as e:
                 # If I get a response pending exception means that I have a new timeout to consider
                 functional_timeout = e.timeout
