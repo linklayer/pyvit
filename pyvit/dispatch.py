@@ -23,7 +23,6 @@ class Dispatcher:
 
     def add_receiver(self, rx_queue):
         if self.is_running:
-            # in theory could be removed: https://github.com/GuillaumeFege/pyvit/commit/1711f00a0124c6b00549d91f38ec31e9389711fd
             raise Exception('dispatcher must be stopped to add receiver')
 
         # ensure the receive queue is a queue
@@ -37,7 +36,6 @@ class Dispatcher:
 
     def remove_receiver(self, rx_queue):
         if self.is_runnning():
-            # in theory could be removed: https://github.com/GuillaumeFege/pyvit/commit/1711f00a0124c6b00549d91f38ec31e9389711fd
             raise Exception('dispatcher must be stopped to remove receiver')
 
         # check the receive queue is in the dispatcher
@@ -74,7 +72,6 @@ class Dispatcher:
     def send(self, data):
         if not self.is_running:
             raise Exception('dispatcher not running')
-
         self._tx_queue.put(data)
 
     def _send_loop(self):
