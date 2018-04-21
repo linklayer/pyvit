@@ -68,6 +68,9 @@ class IsotpAddressing(IsotpInterface,ABC):
             self.N_TAtype = n_tatype
             self.extended_id = extended_id or self.EXTENDED_ID[self.addressingType]
             self.N_TA = n_ta
+            if dispatcher is None:
+                # If dispatcher is None means that I don't really need to communicate, upper level is not needed
+                return
             super().__init__(dispatcher, self.compute_tx_arb_id(), self.compute_rx_arb_id(), extended_id = self.extended_id, rx_filter_func = rx_filter_func)
 
     @property
@@ -111,6 +114,10 @@ class IsotpMixedAddressing (IsotpAddressing):
             self.N_TAtype]) << 8) | self.N_TA) << 8) | self.N_SA)
 
     def compute_rx_arb_id(self):
+        if self.N_TAtype == N_TAtype.functional:
+            # If functional addressing is used I can have responses from multiple ECUs
+            # Havin a rx_arb_id has no meaning
+            return False
         # compose the N_AI fields to get the 29b CAN ID of the response message
         # N_TAtype should be always physical
         # N_TA and N_SA are reversed respect to tx_arb_id
@@ -166,14 +173,14 @@ class IsotpNormalFixedAddressing (IsotpAddressing):
 
     def compute_tx_arb_id(self):
         # compose the N_AI fields to get the 29b CAN ID
-        # print("%X" % (self.P & 0b111))
-        # print("%X" % ((self.P & 0b111) << 1))
-        # print("%X" % ((((self.P & 0b111) << 1)| self.R) << 1 | self.DP))
-        # print("%X" % (((((self.P & 0b111) << 1) | self.R) << 1) | self.DP))
         return (((((((((((self.P & 0b111) << 1) | self.R) << 1) | self.DP) << 8) | self.PF[self.addressingType][
             self.N_TAtype]) << 8) | self.N_TA) << 8) | self.N_SA)
 
     def compute_rx_arb_id(self):
+        if self.N_TAtype == N_TAtype.functional:
+            # If functional addressing is used I can have responses from multiple ECUs
+            # Havin a rx_arb_id has no meaning
+            return False
         # compose the N_AI fields to get the 29b CAN ID of the response message
         # N_TAtype should be always physical
         # N_TA and N_SA are reversed respect to tx_arb_id
@@ -182,7 +189,7 @@ class IsotpNormalFixedAddressing (IsotpAddressing):
 
 
 class IsotpNormalAddressing (IsotpAddressing):
-    def __init__(self, dispatcher, tx_arb_id, rx_arb_id = False, n_tatype = N_TAtype.physical, rx_filter_func = False):
+    def __init__(self, dispatcher, tx_arb_id = 0x700, rx_arb_id = False, n_tatype = N_TAtype.physical, rx_filter_func = False):
         self._rx_arb_id = rx_arb_id
         self._tx_arb_id = tx_arb_id
         super().__init__(dispatcher, n_tatype = n_tatype, addressingType = AddressingType.NormalAddressing,
