@@ -1,5 +1,6 @@
 import operator
 import time
+import sys
 
 from math import log
 
@@ -141,11 +142,13 @@ class NegativeResponseException(Exception):
         :param nrc_data:
         :return:
         """
-        if nrc_data[2] == NegativeResponse.responsePending:
-            return ResponsePendingException(nrc_data)
-        elif nrc_data[2] == NegativeResponse.securityAccessDenied:
-            return SecurityAccessDeniedException(nrc_data)
-        else:
+        try:
+            nrc_class_name = NegativeResponseException.negativeExceptionClassName(nrc_data[2])
+            thismodule = sys.modules[__name__]
+            specific_except_class = getattr(thismodule,nrc_class_name)
+            return specific_except_class(nrc_data)
+        except (NameError,AttributeError) as e:
+            # Class does not exists for the exception, use general one
             return NegativeResponseException(nrc_data)
 
     def __init__(self, nrc_data):
@@ -155,6 +158,15 @@ class NegativeResponseException(Exception):
     def __str__(self):
         return 'NRC: SID = 0x%X: %s' % (self.sid,
                                         NegativeResponse.to_str(self.nrc_code))
+
+    @classmethod
+    def negativeExceptionClassName(self, nrc_code):
+        try:
+            nrc_name = NegativeResponse.to_str(nrc_code)
+        except ValueError:
+            # Not able to identify a specific class for the negative response, use general one
+            return 'NegativeResponseException'
+        return nrc_name[:1].upper() + nrc_name[1:] + 'Exception'
 
 class ResponsePendingException(NegativeResponseException):
     """
@@ -169,6 +181,18 @@ class ResponsePendingException(NegativeResponseException):
         self.timeout = 5
 
 class SecurityAccessDeniedException(NegativeResponseException):
+    pass
+
+class ServiceNotSupportedException(NegativeResponseException):
+    pass
+
+class SubFunctionNotSupportedInActiveSessionException(NegativeResponseException):
+    pass
+
+class ServiceNotSupportedInActiveSessionException(NegativeResponseException):
+    pass
+
+class SubFunctionNotSupportedException(NegativeResponseException):
     pass
 
 class TimeoutException(Exception):
@@ -351,6 +375,8 @@ class CommunicationControl:
         'enableRxAndDisableTx': 0x01,
         'disableRxandEnableTx': 0x02,
         'disableRxAndTx': 0x03,
+        'enableRxAndDisableTxWithEnhancedAddressInformation': 0x4,
+        'enableRxAndTxWithEnhancedAddressInformation': 0x5,
         # 0x06 - 0x3F: ISOSAEReserved
         # 0x40 - 0x5F: vehicleManufacturerSpecific
         # 0x60 - 0x7E: vehicleManufacturerSpecific
@@ -368,6 +394,7 @@ class CommunicationControl:
         # bits 2-3: ISOSAEReserved
         'normalCommunicationMessages': 0b01,
         'networkManagementCommunicationMessages': 0b10,
+        'networkManagementCommunicationMessagesANDnormalCommunicationMessages': 0b11,
         })
 
     class Response(GenericResponse):
@@ -381,7 +408,7 @@ class CommunicationControl:
             self['controlType'] = data[1]
 
     class Request(GenericRequest):
-        def __init__(self, control_type=0, communication_type=0,
+        def  __init__(self, control_type=0, communication_type=0,
                      network_number=0):
             super(CommunicationControl.Request, self).__init__(
                 'CommunicationControl',
@@ -1407,7 +1434,11 @@ class UDSInterface:
     def request(self, service, timeout=0.5):
         self.transport_layer.send(service.encode())
         if self.transport_layer.N_TAtype == N_TAtype.physical:
-            return self.decode_response(timeout=timeout)
+            try:
+                return self.decode_response(timeout=timeout)
+            except ResponsePendingException as e:
+                # If I get a response pending exception means that I have a new timeout to consider
+                return self.decode_response(timeout=e.timeout)
         elif self.transport_layer.N_TAtype == N_TAtype.functional:
             return self.decode_responses(timeout)
         else:
@@ -1456,7 +1487,7 @@ class UDSInterface:
                 resp = self.decode_response(timeout)
             except ResponsePendingException as e:
                 # If I get a response pending exception means that I have a new timeout to consider
-                functional_timeout = e.timeout
+                self.functional_timeout = e.timeout
             if resp is not None:
                 resps[self.transport_layer.last_arb_id] = resp
         return resps
