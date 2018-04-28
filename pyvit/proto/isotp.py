@@ -20,6 +20,7 @@ class IsotpInterface:
         self.extended_id = extended_id
         self.rx_filter_func = rx_filter_func
         self.last_arb_id = None
+        self.arb_ids_blacklist = []
 
         # depending of the addressing type the data len limit for using a single frame may change, in most cases is 7
         self.sf_data_len_limit = 7
@@ -315,11 +316,16 @@ class IsotpInterface:
     def filter_received_frame(self,rx_frame):
         """
         function establish if received frame has to be considered or not
-        further implementation is demanded to addressing classes
-        :param rx_frame:
+        the next criterion are applied in and logic:
+        - received frame CAN ID should not be in blacklist
+        - if rx_arb_id is set received frame has to be on that CAN ID
+        - if rx_filter_func is set the result aplaying it to the received frame should be true
+        :param rx_frame: received frame
         :return: true if frame has to be accepted
         """
-        let_frame_pass = False
+        if rx_frame.arb_id in self.arb_ids_blacklist:
+            return False
+
         if self.rx_arb_id:
             let_frame_pass = rx_frame.arb_id == self.rx_arb_id
         else:
