@@ -270,8 +270,14 @@ class DiagnosticSessionControl:
 
         def decode(self, data):
             self._check_nrc(data)
-            self['diagnosticSessionType'] = data[1]
-            self['sessionParameterRecord'] = data[2:]
+            try:
+                self['diagnosticSessionType'] = data[1]
+                self['sessionParameterRecord'] = data[2:]
+            except IndexError:
+                # I found on an Opel Corsa a positive response which does not include those info
+                # clearly wrong according to the standard but it happens
+                self['diagnosticSessionType'] = ""
+                self['sessionParameterRecord'] = ""
 
     class Request(GenericRequest):
         def __init__(self, diagnostic_session_type=None):
@@ -1488,6 +1494,8 @@ class UDSInterface:
             except ResponsePendingException as e:
                 # If I get a response pending exception means that I have a new timeout to consider
                 self.functional_timeout = e.timeout
+            except NegativeResponseException as e:
+                resp = self.SERVICES[e.sid].Response()
             if resp is not None:
                 resps[self.transport_layer.last_arb_id] = resp
         return resps

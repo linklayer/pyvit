@@ -4,22 +4,22 @@ Details on how addressing works for ISOTP can be seen in ISO 15765-2
 
 from pyvit.proto.isotp import IsotpInterface
 from abc import ABC, abstractmethod
-from enum import Enum, auto
+from enum import Enum
 
 
 class Mtype(Enum):
-    diagnostics = auto()
-    remote_diagnostics = auto()
+    diagnostics = 1
+    remote_diagnostics = 2
 
 
 class N_TAtype(Enum):
-    functional = auto()
-    physical = auto()
+    functional = 1
+    physical = 2
 
 
 class AddressingType(Enum):
     # CAN ID 11b, for each combination of N_SA, N_TA, N_TAtype, Mtype a unique CAN identifier is asigned
-    NormalAddressing = auto()
+    NormalAddressing = 1
     # CAN ID 29b, mapping between addressing fields and CAN ID bits is specified
     # 28-26: priority bits, usually (110)bin -> (6)hex
     # 25,24: bits R (reserved) and DP (data page), set to 0
@@ -27,10 +27,10 @@ class AddressingType(Enum):
         # if N_TAtype.physical then (218)dec, if N_TAtype.functional then (219)dec
     # 15-8: N_TA
     # 7-0: N_SA
-    NormalFixedAddressing = auto()
+    NormalFixedAddressing = 2
     # suppose CAN ID 11b, for each combination of N_SA, N_TAtype, Mtype a unique CAN identifier is assigned
     # N_TA is placed in the first byte of data, N_PCI info and N_Data are placed after
-    ExtendedAddressing = auto()
+    ExtendedAddressing = 3
     # MType is set to Mtype.remote_diagnostics
     # if CAN ID 29b
         # 28-26: priority bits, usually (110)bin -> (6)hex
@@ -43,7 +43,7 @@ class AddressingType(Enum):
     # if CAN ID 11b
         # for each combination of N_SA, N_TA, N_TAtype a unique CAN identifier is assigned
         # N_AE is placed in the first byte of data, N_PCI info and N_Data are placed after
-    MixedAddressing = auto()
+    MixedAddressing = 4
 
 
 class IsotpAddressing(IsotpInterface,ABC):
