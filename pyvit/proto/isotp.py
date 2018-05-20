@@ -45,17 +45,23 @@ class IsotpInterface:
         self.data_len = 0
         return tmp
 
-    def _set_filter(self):
+    def set_filter(self,arb_id, mask):
         if (hasattr(self._dispatcher._device, "set_filter_id") and
-                hasattr(self._dispatcher._device, "set_filter_mask") and
-                self.rx_arb_id):
-            self._dispatcher._device.set_filter_id(self.rx_arb_id)
-            self._dispatcher._device.set_filter_mask(0x7FF)
+                hasattr(self._dispatcher._device, "set_filter_mask")):
+            self._dispatcher._device.set_filter_id(arb_id)
+            self._dispatcher._device.set_filter_mask(mask)
 
-    def _unset_filter(self):
+    def unset_filter(self):
         if (hasattr(self._dispatcher._device, "set_filter_id") and
                 hasattr(self._dispatcher._device, "set_filter_mask")):
             self._dispatcher._device.set_filter_mask(0)
+
+    def _set_filter(self):
+        if (self.rx_arb_id):
+            self.set_filter(self.rx_arb_id, 0xFFF)
+
+    def _unset_filter(self):
+        self.unset_filter()
 
     def reset(self):
         # abort reading a message
