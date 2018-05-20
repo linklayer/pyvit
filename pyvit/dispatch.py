@@ -6,11 +6,14 @@ The first one transmits evrything from queue _tx_queue
 The second one puts evrything received in all the queues present in the list _rx_queues
 So in order to transmit a frame we have to add it to the queue _tx_queue with method send
 In order to receive we have to read from our queue added trought method add_receiver
+
+singleprocess if True indicates to use only one process for receiving and transmitting. These is implemented in function _communication_loop
+
 REMEMBER: start the dispatcher with method start()"""
 
 
 class Dispatcher:
-    def __init__(self, device):
+    def __init__(self, device, single_process = False):
         # ensure the device has the required method functions
         if not (hasattr(device, 'start') and hasattr(device, 'stop') and
                 hasattr(device, 'send') and hasattr(device, 'recv')):
@@ -20,6 +23,7 @@ class Dispatcher:
         self._rx_queues = []
         self._tx_queue = Queue()
         self._running = False
+        self._single_process = single_process
 
     def add_receiver(self, rx_queue):
         if self.is_running:
@@ -50,18 +54,25 @@ class Dispatcher:
 
         self._device.start()
 
-        self._send_process = Process(target=self._send_loop)
-        self._recv_process = Process(target=self._recv_loop)
-        self._recv_process.start()
-        self._send_process.start()
+        if self._single_process:
+            self._comm_process = Process(target=self._communication_loop)
+            self._comm_process.start()
+        else:
+            self._send_process = Process(target=self._send_loop)
+            self._recv_process = Process(target=self._recv_loop)
+            self._recv_process.start()
+            self._send_process.start()
         self._running = True
 
     def stop(self):
         if not self.is_running:
             raise Exception('dispatcher not running')
 
-        self._recv_process.terminate()
-        self._send_process.terminate()
+        if self._single_process:
+            self._comm_process.terminate()
+        else:
+            self._recv_process.terminate()
+            self._send_process.terminate()
         self._device.stop()
         self._running = False
 
@@ -81,6 +92,24 @@ class Dispatcher:
 
     def _recv_loop(self):
         while True:
+            if not self._tx_queue.empty():
+                data = self._tx_queue.get()
+                self._device.send(data)
             data = self._device.recv()
-            for rx_queue in self._rx_queues:
-                rx_queue.put_nowait(data)
+            if data is not None:
+                for rx_queue in self._rx_queues:
+                    rx_queue.put_nowait(data)
+
+    def _communication_loop(self):
+        """
+        After each received frame check if there is something to send, in case send it and receive again
+        :return:
+        """
+        while True:
+            while not self._tx_queue.empty():
+                data = self._tx_queue.get()
+                self._device.send(data)
+            data = self._device.recv()
+            if data is not None:
+                for rx_queue in self._rx_queues:
+                    rx_queue.put_nowait(data)
