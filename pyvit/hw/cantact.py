@@ -1,3 +1,4 @@
+import lock as lock
 import serial
 
 from .. import can
@@ -6,9 +7,9 @@ from .. import can
 class CantactDev:
     debug = False
 
-    def __init__(self, port):
+    def __init__(self, port, baudrate=9600):
         # opening the serial connection with the device in attribute ser
-        self.ser = serial.Serial(port)
+        self.ser = serial.Serial(port, baudrate)
 
     def _dev_write(self, string):
         self.ser.write(string.encode())
