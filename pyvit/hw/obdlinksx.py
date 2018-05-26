@@ -70,7 +70,6 @@ class OBDLinkSXDev:
         # interrogare con STPRSa per sapere il protocollo usato
         if not self.receiveUntilGreaterThan().endswith("%s\rOK\r\r>" % command):
             raise RuntimeError("%s failed" % command)
-            return
 
 
     # listens to the serial connection and automatically concatenates all the received
@@ -196,7 +195,7 @@ class OBDLinkSXDev:
     def sendFrame(self, frame):
         self.stopLogging()
         #TODO: handle 29b IDs
-        first2hexesId = frame[:2]
+        # first2hexesId = frame[:2]
         # last6hexesId = frame[2:8]
         last6hexesId = frame[:3]
         dataField = frame[3:]

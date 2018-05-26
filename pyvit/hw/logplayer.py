@@ -32,7 +32,6 @@ class LogPlayer:
     def send(self, data):
         if self.debug:
             print("DEV SEND: %s " % data)
-        pass
 
     def recv(self):
         assert self.running, 'not running'

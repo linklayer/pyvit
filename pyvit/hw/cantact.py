@@ -1,4 +1,3 @@
-import lock as lock
 import serial
 
 from .. import can

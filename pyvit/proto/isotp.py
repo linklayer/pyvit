@@ -343,6 +343,5 @@ class IsotpInterface:
             return let_frame_pass and self.rx_filter_func(rx_frame)
 
 
-    @staticmethod
-    def get_base_frame_data():
+    def get_base_frame_data(self):
         return []

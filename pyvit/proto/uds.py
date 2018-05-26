@@ -147,7 +147,7 @@ class NegativeResponseException(Exception):
             thismodule = sys.modules[__name__]
             specific_except_class = getattr(thismodule,nrc_class_name)
             return specific_except_class(nrc_data)
-        except (NameError,AttributeError) as e:
+        except (NameError,AttributeError):
             # Class does not exists for the exception, use general one
             return NegativeResponseException(nrc_data)
 
