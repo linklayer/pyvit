@@ -42,6 +42,7 @@ class Dispatcher:
             raise Exception('dispatcher already running')
 
         self._device.start()
+        self._tx_queue = Queue()
 
         self._send_process = Process(target=self._send_loop)
         self._recv_process = Process(target=self._recv_loop)
