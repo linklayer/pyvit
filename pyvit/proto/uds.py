@@ -847,7 +847,7 @@ class ReadScalingDataByIdentifier:
                     self['dataIdentifier'] & 0xFF]
 
         def decode(self, data):
-            self.check_sid(data)
+            self._check_sid(data)
             self['dataIdentifier'] = _from_bytes(data[1:3])
 
 
