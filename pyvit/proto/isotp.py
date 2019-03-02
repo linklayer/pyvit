@@ -85,7 +85,7 @@ class IsotpInterface:
 
             # check that the data length is valid for a SF, the max length can change depending on addressing type
             if not (sf_dl > 0 and sf_dl <= self.sf_data_len_limit):
-                raise ValueError('invalid SF_DL parameter for single frame')
+                raise ValueError('invalid SF_DL parameter for single frame %s', frame)
 
             self.data_len = sf_dl
 
@@ -195,7 +195,7 @@ class IsotpInterface:
             if time.time() - start > timeout:
                 if self.debug:
                     print ('timeout ISOTP')
-                return None
+                return data
 
         self._unset_filter()
         return data
@@ -325,7 +325,7 @@ class IsotpInterface:
         the next criterion are applied in and logic:
         - received frame CAN ID should not be in blacklist
         - if rx_arb_id is set received frame has to be on that CAN ID
-        - if rx_filter_func is set the result aplaying it to the received frame should be true
+        - if rx_filter_func is set the result applying it to the received frame should be true
         :param rx_frame: received frame
         :return: true if frame has to be accepted
         """
@@ -341,7 +341,6 @@ class IsotpInterface:
             return let_frame_pass
         else:
             return let_frame_pass and self.rx_filter_func(rx_frame)
-
 
     def get_base_frame_data(self):
         return []
