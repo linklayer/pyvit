@@ -21,11 +21,14 @@ class LoopbackDev:
     def send(self, data):
         if not self.running:
             raise Exception('device not started')
-
+        if self.debug:
+            print("SENT: %s" % data)
         self._queue.put(data)
 
     def recv(self):
         if not self.running:
             raise Exception('device not started')
-
-        return self._queue.get()
+        dt = self._queue.get()
+        if self.debug:
+            print("RECV: %s" % dt)
+        return dt
