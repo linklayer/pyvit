@@ -18,6 +18,10 @@ def _byte_size(value):
 
 def _to_bytes(value, padding=0):
     # convert value to byte array, MSB first
+
+    if isinstance(value, list):
+        return value
+
     res = []
 
     # return an empty list for NoneType
@@ -62,8 +66,7 @@ class UDSParameter:
         for (k, v) in self.data.items():
             if value == v:
                 return k
-
-        raise ValueError("No parameter value defined for 0x%X" % value)
+        return "Unknown"
 
     def __repr__(self):
         result = self.name + ':\n'
@@ -236,7 +239,7 @@ class GenericResponse(dict):
 
         if data[0] == 0x7F:
             raise NegativeResponseException.factory(data)
-        elif data[0] != self.SID + 0x40:
+        elif data[0]+ 0x40 != self.SID + 0x40:
             raise ValueError('Invalid SID for service'
                              '(got 0x%X, expected 0x%X)' %
                              (data[0] + 0x40, self.SID + 0x40))
@@ -666,7 +669,7 @@ class ResponseOnEvent:
                 raise ValueError('Invalid eventTypeRecord length')
             elif (event_type == ResponseOnEvent.EventType.
                   onComparisonOfValues and len(event_type_record) != 10):
-                raise ValueError('Invalid eventTypeRecord length')
+                ReadDTCInformation
 
             self['eventType'] = event_type
             # event_window_type defaults to 0x02, specifying infinite time
@@ -1102,7 +1105,7 @@ class ClearDiagnosticInformation:
 
 
 class ReadDTCInformation:
-    """ WriteMemoryByAddress service """
+    """ ReadDTCInformation service """
     SID = 0x19
 
     class Response(GenericResponse):
@@ -1111,9 +1114,13 @@ class ReadDTCInformation:
                 'ReadDTCInformation',
                 ReadDTCInformation.SID)
 
+        def encode(self):
+            return ([self.SID + 0x40] +
+                    _to_bytes(self['data']))
+
         def decode(self, data):
             self._check_nrc(data)
-            # TODO
+            # TODO implement specific parameters decode
             self['data'] = data[1:]
 
     class Request(GenericRequest):
@@ -1122,9 +1129,13 @@ class ReadDTCInformation:
                 'ReadDTCInformation',
                 ReadDTCInformation.SID)
 
+        def encode(self):
+            return ([self.SID] +
+                    _to_bytes(self['data']))
+
         def decode(self, data):
             self._check_sid(data)
-            # TODO
+            # TODO implement specific parameters decode
             self['data'] = data[1:]
 
 
@@ -1449,6 +1460,9 @@ class UDSInterface:
             return self.decode_responses(timeout)
         else:
             raise Exception("Unknown N_TAtype")
+
+    def response(self, service):
+        self.transport_layer.send(service.encode())
 
     def decode_request(self, timeout=0.5):
         data = self.transport_layer.recv(timeout=timeout)
