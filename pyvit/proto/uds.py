@@ -239,10 +239,10 @@ class GenericResponse(dict):
 
         if data[0] == 0x7F:
             raise NegativeResponseException.factory(data)
-        elif data[0]+ 0x40 != self.SID + 0x40:
+        elif data[0] != self.SID + 0x40:
             raise ValueError('Invalid SID for service'
                              '(got 0x%X, expected 0x%X)' %
-                             (data[0] + 0x40, self.SID + 0x40))
+                             (data[0], self.SID + 0x40))
 
     def __str__(self):
         return '%s Response: %s' % (self.name, super(GenericResponse,
@@ -1119,7 +1119,7 @@ class ReadDTCInformation:
                     _to_bytes(self['data']))
 
         def decode(self, data):
-            self._check_nrc(data)
+            # self._check_nrc(data)
             # TODO implement specific parameters decode
             self['data'] = data[1:]
 
