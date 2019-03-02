@@ -92,9 +92,6 @@ class IsotpAddressing(IsotpInterface,ABC):
     def compute_rx_arb_id(self):
         pass
 
-    def parse_frame(self,frame):
-        return super(IsotpAddressing, self).parse_frame(frame)
-
 
 class IsotpMixedAddressing (IsotpAddressing):
     def __init__(self, dispatcher, n_sa=0x00, n_ta=0x00, n_ae=False, mtype=Mtype.diagnostics,

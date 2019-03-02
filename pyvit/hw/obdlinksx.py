@@ -121,7 +121,6 @@ class OBDLinkSXDev:
         strrec = self.receiveUntilGreaterThan()
         if not strrec.endswith("ATZ\r\r\rELM327 v1.3a\r\r>"):
             raise RuntimeError("ATZ failed")
-            return
         sys.stdout.flush()
 
     # Commands for ELM327 custom user1 CAN setup
@@ -138,33 +137,26 @@ class OBDLinkSXDev:
         self._dev_write("ATD1")
         if not self.receiveUntilGreaterThan().endswith("ATD1\rOK\r\r>"):
             raise RuntimeError("ATD1 failed")
-            return
         self._dev_write("ATV1")
         if not self.receiveUntilGreaterThan().endswith("ATV1\rOK\r\r>"):
             raise RuntimeError("ATV1 failed")
-            return
         self._dev_write("ATCAF0")
         if not self.receiveUntilGreaterThan().endswith("ATCAF0\rOK\r\r>"):
             raise RuntimeError("ATCAF0 failed")
-            return
         self._dev_write("ATH1")
         if not self.receiveUntilGreaterThan().endswith("ATH1\rOK\r\r>"):
             raise RuntimeError("ATH1 failed")
-            return
         self._dev_write("ATAL")
         if not self.receiveUntilGreaterThan().endswith("ATAL\rOK\r\r>"):
             raise RuntimeError("ATAL failed")
-            return
         self._dev_write("STCMM1")
         if not self.receiveUntilGreaterThan().endswith("STCMM1\rOK\r\r>"):
             raise RuntimeError("STCMM1 failed")
-            return
 
     def startLogging(self):
         self._dev_write("STMA")
         if self.receiveUntilNewLine()!="STMA\r":
             raise RuntimeError("StartLogging failed")
-        return
 
     def recv(self):
         incomingString = self.receiveUntilNewLine()
@@ -185,7 +177,6 @@ class OBDLinkSXDev:
         ret = self.receiveUntilGreaterThan()
         if not ret.endswith("\r>") and not ret.endswith(">"):
             raise RuntimeError("StopLogging failed")
-            return
 
     def send(self, frame):
         if self.debug:
@@ -206,10 +197,8 @@ class OBDLinkSXDev:
         self._dev_write("ATSH"+last6hexesId)
         if not self.receiveUntilGreaterThan().endswith("ATSH"+last6hexesId+"\rOK\r\r>"):
             raise RuntimeError("Last6hexesId set failed")
-            return
         self._dev_write(dataField)
         if not self.receiveUntilGreaterThan()[:len(dataField)].endswith(dataField):
             raise RuntimeError("DataField send failed")
-            return
 
         self.startLogging()

@@ -9,7 +9,8 @@ In order to receive we have to read from our queue added trought method add_rece
 
 singleprocess if True indicates to use only one process for receiving and transmitting. These is implemented in function _communication_loop
 
-REMEMBER: start the dispatcher with method start"""
+REMEMBER: start the dispatcher with method start
+"""
 
 
 class Dispatcher:

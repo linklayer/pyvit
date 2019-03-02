@@ -41,7 +41,7 @@ class LogPlayer:
         if line == '':
             # out of frames
             return None
-        if line in ['\n','\n\r']:
+        if line in ['\n', '\n\r']:
             # seams to be an empty line, just go for next one
             return self.recv()
 
@@ -76,8 +76,8 @@ class LogPlayer:
         arb_id_str = fields[2].split('#')[0]
         arb_id = int(arb_id_str, 16)
 
-        extended_id = len(arb_id_str)>3
-        frame = can.Frame(arb_id,extended=extended_id)
+        extended_id = len(arb_id_str) > 3
+        frame = can.Frame(arb_id, extended=extended_id)
 
         frame.timestamp = float(fields[0][1:-1])
 
@@ -90,5 +90,5 @@ class LogPlayer:
 
         return frame
 
-    def set_bitrate(self,value):
+    def set_bitrate(self, value):
         pass
