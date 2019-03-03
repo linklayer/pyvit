@@ -8,3 +8,7 @@
 build/*
 dist/*
 MANIFEST
+examples/*.log
+.idea/
+.vscode/
+venv/

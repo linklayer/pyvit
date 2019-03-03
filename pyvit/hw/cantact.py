@@ -4,19 +4,29 @@ from .. import can
 
 
 class CantactDev:
-    def __init__(self, port):
-        self.ser = serial.Serial(port)
+    debug = False
+
+    def __init__(self, port, baudrate=9600):
+        # opening the serial connection with the device in attribute ser
+        self.ser = serial.Serial(port, baudrate)
 
     def _dev_write(self, string):
         self.ser.write(string.encode())
 
     def start(self):
+        # activate CANtact standard operations
         self._dev_write('O\r')
+        if self.debug:
+            print("CantactDev started")
 
     def stop(self):
+        # terminates CANtact standard operations
         self._dev_write('C\r')
+        if self.debug:
+            print("CantactDev stopped")
 
     def set_bitrate(self, bitrate):
+        # set the CAN bus bitrate
         if bitrate == 10000:
             self._dev_write('S0\r')
         elif bitrate == 20000:
@@ -35,12 +45,20 @@ class CantactDev:
             self._dev_write('S7\r')
         elif bitrate == 1000000:
             self._dev_write('S8\r')
+        elif bitrate == 83000:
+            self._dev_write('S9\r')
+        elif bitrate == 800000:
+            self._dev_write('Sa\r')
+        elif bitrate == 0:
+            self._dev_write('Su\r')
         else:
             raise ValueError("Bitrate not supported")
 
     def recv(self):
         # receive characters until a newline (\r) is hit
         rx_str = ""
+        if self.debug:
+            print("CantactDev recv called")
         while rx_str == "" or rx_str[-1] != '\r':
             rx_str = rx_str + self.ser.read().decode('ascii')
 
@@ -57,6 +75,9 @@ class CantactDev:
         elif rx_str[0] == 'r':
             ext_id = False
             remote = True
+        else:
+            # If I read somthing meaningless read next packet
+            return self.recv()
 
         # parse the id and DLC
         if ext_id:
@@ -79,6 +100,8 @@ class CantactDev:
             data.append(int(rx_str[data_offset+i*2:(data_offset+2)+i*2], 16))
             frame.data = data
 
+        if self.debug:
+            print("RECV: %s" % frame)
         return frame
 
     def send(self, frame):
@@ -97,6 +120,8 @@ class CantactDev:
 
         # send it
         self._dev_write(tx_str)
+        if self.debug:
+            print("SENT: %s" % frame)
 
     def set_filter_id(self, filter_id):
         # set CAN filter identifier

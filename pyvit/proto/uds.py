@@ -1,8 +1,11 @@
 import operator
+import time
+import sys
 
 from math import log
 
-from pyvit.proto.isotp import IsotpInterface
+from pyvit.proto.isotpAddressing import N_TAtype, IsotpNormalAddressing, IsotpNormalFixedAddressing
+from pyvit.dispatch import Dispatcher
 
 
 def _byte_size(value):
@@ -15,6 +18,10 @@ def _byte_size(value):
 
 def _to_bytes(value, padding=0):
     # convert value to byte array, MSB first
+
+    if isinstance(value, list):
+        return value
+
     res = []
 
     # return an empty list for NoneType
@@ -24,7 +31,7 @@ def _to_bytes(value, padding=0):
     while value > 0:
         res = [value & 0xFF] + res
         value = value >> 8
-        
+
     # add '0' padding to the front of the list if specified
     while padding > 0:
         res = [0x00] + res
@@ -59,8 +66,7 @@ class UDSParameter:
         for (k, v) in self.data.items():
             if value == v:
                 return k
-
-        raise ValueError("No parameter value defined for 0x%X" % value)
+        return "Unknown"
 
     def __repr__(self):
         result = self.name + ':\n'
@@ -131,6 +137,23 @@ NegativeResponse = UDSParameter('NegativeResponse', {
 class NegativeResponseException(Exception):
     nrc_code = None
 
+    @staticmethod
+    def factory(nrc_data):
+        """
+        For certain nrc_codes we have specific exception defined, this is a factory pattern which
+        instantiate the right exception class depending of the nrc_code of the negative response
+        :param nrc_data:
+        :return:
+        """
+        try:
+            nrc_class_name = NegativeResponseException.negativeExceptionClassName(nrc_data[2])
+            thismodule = sys.modules[__name__]
+            specific_except_class = getattr(thismodule,nrc_class_name)
+            return specific_except_class(nrc_data)
+        except (NameError,AttributeError):
+            # Class does not exists for the exception, use general one
+            return NegativeResponseException(nrc_data)
+
     def __init__(self, nrc_data):
         self.sid = nrc_data[1]
         self.nrc_code = nrc_data[2]
@@ -139,6 +162,41 @@ class NegativeResponseException(Exception):
         return 'NRC: SID = 0x%X: %s' % (self.sid,
                                         NegativeResponse.to_str(self.nrc_code))
 
+    @classmethod
+    def negativeExceptionClassName(self, nrc_code):
+        try:
+            nrc_name = NegativeResponse.to_str(nrc_code)
+        except ValueError:
+            # Not able to identify a specific class for the negative response, use general one
+            return 'NegativeResponseException'
+        return nrc_name[:1].upper() + nrc_name[1:] + 'Exception'
+
+class ResponsePendingException(NegativeResponseException):
+    """
+    This negative response type says to the client that the server is still computing the response, just wait more
+    """
+    timeout = 0
+
+    def __init__(self, nrc_data):
+        super().__init__(nrc_data)
+        # with these kind of negative response the server request the P2extende timeout to wait for the pendind response, see ISO 14229-1:2013
+        # the maximum value for this parameter is 5000ms (5s), usually the exact one is comunicated in the response of the diagnosticSessionControl request
+        self.timeout = 5
+
+class SecurityAccessDeniedException(NegativeResponseException):
+    pass
+
+class ServiceNotSupportedException(NegativeResponseException):
+    pass
+
+class SubFunctionNotSupportedInActiveSessionException(NegativeResponseException):
+    pass
+
+class ServiceNotSupportedInActiveSessionException(NegativeResponseException):
+    pass
+
+class SubFunctionNotSupportedException(NegativeResponseException):
+    pass
 
 class TimeoutException(Exception):
     pass
@@ -174,17 +232,17 @@ class GenericResponse(dict):
     def _check_nrc(self, data):
         """ Generic function for checking received data is valid. If data
         is not received, a timeout is raised. If an negative response was
-        received an approproate exception is raised """
+        received an appropriate exception is raised """
 
         if data is None:
             raise TimeoutException("No data received")
 
         if data[0] == 0x7F:
-            raise NegativeResponseException(data)
+            raise NegativeResponseException.factory(data)
         elif data[0] != self.SID + 0x40:
             raise ValueError('Invalid SID for service'
                              '(got 0x%X, expected 0x%X)' %
-                             (data[0] + 0x40, self.SID + 0x40))
+                             (data[0], self.SID + 0x40))
 
     def __str__(self):
         return '%s Response: %s' % (self.name, super(GenericResponse,
@@ -215,8 +273,14 @@ class DiagnosticSessionControl:
 
         def decode(self, data):
             self._check_nrc(data)
-            self['diagnosticSessionType'] = data[1]
-            self['sessionParameterRecord'] = data[2:]
+            try:
+                self['diagnosticSessionType'] = data[1]
+                self['sessionParameterRecord'] = data[2:]
+            except IndexError:
+                # I found on an Opel Corsa a positive response which does not include those info
+                # clearly wrong according to the standard but it happens
+                self['diagnosticSessionType'] = ""
+                self['sessionParameterRecord'] = ""
 
     class Request(GenericRequest):
         def __init__(self, diagnostic_session_type=None):
@@ -320,6 +384,8 @@ class CommunicationControl:
         'enableRxAndDisableTx': 0x01,
         'disableRxandEnableTx': 0x02,
         'disableRxAndTx': 0x03,
+        'enableRxAndDisableTxWithEnhancedAddressInformation': 0x4,
+        'enableRxAndTxWithEnhancedAddressInformation': 0x5,
         # 0x06 - 0x3F: ISOSAEReserved
         # 0x40 - 0x5F: vehicleManufacturerSpecific
         # 0x60 - 0x7E: vehicleManufacturerSpecific
@@ -337,6 +403,7 @@ class CommunicationControl:
         # bits 2-3: ISOSAEReserved
         'normalCommunicationMessages': 0b01,
         'networkManagementCommunicationMessages': 0b10,
+        'networkManagementCommunicationMessagesANDnormalCommunicationMessages': 0b11,
         })
 
     class Response(GenericResponse):
@@ -350,7 +417,7 @@ class CommunicationControl:
             self['controlType'] = data[1]
 
     class Request(GenericRequest):
-        def __init__(self, control_type=0, communication_type=0,
+        def  __init__(self, control_type=0, communication_type=0,
                      network_number=0):
             super(CommunicationControl.Request, self).__init__(
                 'CommunicationControl',
@@ -377,7 +444,7 @@ class CommunicationControl:
 class TesterPresent:
     """ TesterPresent service """
     SID = 0x3E
-    
+
     ZeroSubFunction = UDSParameter('ZeroSubFunction', {
         'requestPosRspMsg': 0x00,
         'suppressPosRspMsg': 0x80,
@@ -602,7 +669,7 @@ class ResponseOnEvent:
                 raise ValueError('Invalid eventTypeRecord length')
             elif (event_type == ResponseOnEvent.EventType.
                   onComparisonOfValues and len(event_type_record) != 10):
-                raise ValueError('Invalid eventTypeRecord length')
+                ReadDTCInformation
 
             self['eventType'] = event_type
             # event_window_type defaults to 0x02, specifying infinite time
@@ -749,6 +816,7 @@ class ReadDataByIdentifier:
             self._check_nrc(data)
             self['dataIdentifier'] = (data[1] << 8) + data[2]
             self['dataRecord'] = data[3:]
+            self['dataRecordASCII'] = ''.join(chr(i) for i in self['dataRecord'])
 
     class Request(GenericRequest):
         def __init__(self, data_identifier=0):
@@ -757,7 +825,7 @@ class ReadDataByIdentifier:
                 ReadDataByIdentifier.SID)
             if data_identifier < 0 or data_identifier > 0xFFFF:
                 raise ValueError('Invalid dataIdentifier, '
-                                 'must be > 0 and < 0xFF')
+                                 'must be > 0 and < 0xFFFF')
             self['dataIdentifier'] = data_identifier
 
         def encode(self):
@@ -838,7 +906,7 @@ class ReadScalingDataByIdentifier:
                 ReadScalingDataByIdentifier.SID)
             if data_identifier < 0 or data_identifier > 0xFFFF:
                 raise ValueError('Invalid dataIdentifier, '
-                                 'must be > 0 and < 0xFF')
+                                 'must be > 0 and < 0xFFFF')
             self['dataIdentifier'] = data_identifier
 
         def encode(self):
@@ -938,7 +1006,7 @@ class WriteDataByIdentifier:
 
             if data_identifier < 0 or data_identifier > 0xFFFF:
                 raise ValueError('Invalid dataIdentifier, '
-                                 'must be > 0 and < 0xFF')
+                                 'must be > 0 and < 0xFFFF')
             self['dataIdentifier'] = data_identifier
             self['dataRecord'] = data_record
 
@@ -1037,7 +1105,7 @@ class ClearDiagnosticInformation:
 
 
 class ReadDTCInformation:
-    """ WriteMemoryByAddress service """
+    """ ReadDTCInformation service """
     SID = 0x19
 
     class Response(GenericResponse):
@@ -1046,9 +1114,13 @@ class ReadDTCInformation:
                 'ReadDTCInformation',
                 ReadDTCInformation.SID)
 
+        def encode(self):
+            return ([self.SID + 0x40] +
+                    _to_bytes(self['data']))
+
         def decode(self, data):
-            self._check_nrc(data)
-            # TODO
+            # self._check_nrc(data)
+            # TODO implement specific parameters decode
             self['data'] = data[1:]
 
     class Request(GenericRequest):
@@ -1057,9 +1129,13 @@ class ReadDTCInformation:
                 'ReadDTCInformation',
                 ReadDTCInformation.SID)
 
+        def encode(self):
+            return ([self.SID] +
+                    _to_bytes(self['data']))
+
         def decode(self, data):
             self._check_sid(data)
-            # TODO
+            # TODO implement specific parameters decode
             self['data'] = data[1:]
 
 
@@ -1185,10 +1261,10 @@ class RequestTransfer:
             # lower nybble is byte length of address
             if self['addressFormatIdentifier'] is None:
                 self['addressFormatIdentifier'] = _byte_size(self['memoryAddress'])
-                
+
             if self['lengthFormatIdentifier'] is None:
                 self['lengthFormatIdentifier'] = _byte_size(self['memorySize'])
-                
+
             address_and_length_format_identifier = (self['addressFormatIdentifier'] & 0x0F)
             address_and_length_format_identifier |= ((self['lengthFormatIdentifier'] << 4) & 0xF0)
 
@@ -1326,7 +1402,7 @@ class RequestTransferExit:
             self['transferRequestParameterRecord'] = data[1:]
 
 
-class UDSInterface(IsotpInterface):
+class UDSInterface:
     SERVICES = {
         DiagnosticSessionControl.SID: DiagnosticSessionControl,
         ECUReset.SID: ECUReset,
@@ -1359,19 +1435,37 @@ class UDSInterface(IsotpInterface):
         RequestTransferExit.SID: RequestTransferExit,
         }
 
-    def __init__(self, dispatcher, tx_arb_id=0x7E0, rx_arb_id=0x7E8):
-        super().__init__(dispatcher, tx_arb_id, rx_arb_id)
+    def __init__(self, dispatcher=False, tx_arb_id=0x7E0, rx_arb_id=0x7E8, extended_id = False, functional_timeout = 2):
+        self.functional_timeout = functional_timeout
+        if not isinstance(dispatcher, Dispatcher):
+            # no dispatcher passed, I can't set a transport layer. These will be set from who is using
+            pass
+        elif extended_id:
+            self.transport_layer = IsotpNormalFixedAddressing(dispatcher)
+            self.transport_layer.tx_arb_id = tx_arb_id
+            self.transport_layer.rx_arb_id = rx_arb_id
+        else:
+            self.transport_layer = IsotpNormalAddressing(dispatcher, tx_arb_id)
+            self.transport_layer.rx_arb_id = rx_arb_id
 
     def request(self, service, timeout=0.5):
-        self.send(service.encode())
-        data = self.recv(timeout=timeout)
-        if data is None:
-            return None
-            
-        return service.decode(data)
+        self.transport_layer.send(service.encode())
+        if self.transport_layer.N_TAtype == N_TAtype.physical:
+            try:
+                return self.decode_response(timeout=timeout)
+            except ResponsePendingException as e:
+                # If I get a response pending exception means that I have a new timeout to consider
+                return self.decode_response(timeout=e.timeout)
+        elif self.transport_layer.N_TAtype == N_TAtype.functional:
+            return self.decode_responses(timeout)
+        else:
+            raise Exception("Unknown N_TAtype")
+
+    def response(self, service):
+        self.transport_layer.send(service.encode())
 
     def decode_request(self, timeout=0.5):
-        data = self.recv(timeout=timeout)
+        data = self.transport_layer.recv(timeout=timeout)
         if data is None:
             return None
 
@@ -1384,17 +1478,13 @@ class UDSInterface(IsotpInterface):
         return req
 
     def decode_response(self, timeout=0.5):
-        data = self.recv(timeout=timeout)
+        data = self.transport_layer.recv(timeout=timeout)
         if data is None:
             return None
 
+        # Data is already filtered from the PCI information by the transport_layer.recv() method
         if data[0] == 0x7F:
-            e = NegativeResponseException(data)
-            if e.nrc_code != NegativeResponse.responsePending:
-                raise e
-            else:
-                # response pending, return none for now
-                return None
+            raise NegativeResponseException.factory(data)
         try:
             resp = self.SERVICES[data[0] - 0x40].Response()
             resp.decode(data)
@@ -1402,3 +1492,24 @@ class UDSInterface(IsotpInterface):
             resp = GenericResponse('Unknown Service', data[0])
             resp['data'] = data[1:]
         return resp
+
+    def decode_responses(self,timeout):
+        """
+        In some cases, for example when using functional addressing, we may have more responses from different ECUs
+        :param functional_timeout:
+        :return:
+        """
+
+        resps = {}
+        start = time.time()
+        while time.time() - start <= self.functional_timeout:
+            try:
+                resp = self.decode_response(timeout)
+            except ResponsePendingException as e:
+                # If I get a response pending exception means that I have a new timeout to consider
+                self.functional_timeout = e.timeout
+            except NegativeResponseException as e:
+                resp = self.SERVICES[e.sid].Response()
+            if resp is not None:
+                resps[self.transport_layer.last_arb_id] = resp
+        return resps

@@ -23,6 +23,7 @@ if len(sys.argv) > 4:
 else:
     # functional address
     tx_arb_id = 0x7DF
+    # physical response ID of ECM ECU, responses from other ECUs will be ignored
     rx_arb_id = 0x7E8
 
 obd = ObdInterface(disp, tx_arb_id, rx_arb_id)
